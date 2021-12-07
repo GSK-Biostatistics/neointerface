@@ -57,14 +57,14 @@ def test_rdf_generate_uri_where(db):
 
 def test_rdf_generate_uri_from_neighbours_dct(db):
     db.clean_slate()
-    db.query("""CREATE (v:Vehicle{`rdfs:label`: 'Toyota'}),
-    (m:Model{`rdfs:label`: 'Prius'}),
+    db.query("""CREATE (v:Vehicle{producer: 'Toyota'}),
+    (m:Model{name: 'Prius'}),
     (v)-[:HAS_MODEL]->(m)
     """)
     db.rdf_generate_uri({
-        "Vehicle": {"properties": "rdfs:label"},
-        "Model": {"properties": ["rdfs:label"],
-                  "neighbour": ["Vehicle", "HAS_MODEL", "rdfs:label"]}
+        "Vehicle": {"properties": "producer"},
+        "Model": {"properties": ["name"],
+                  "neighbour": ["Vehicle", "HAS_MODEL", "producer"]}
     })
     result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri order by labels(x)")
     expected_result = [{'x.uri': 'neo4j://graph.schema#Model/Toyota/Prius'},
