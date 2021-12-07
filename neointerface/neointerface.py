@@ -1730,59 +1730,89 @@ class NeoInterface:
                          include_label_in_uri=True,
                          prefix='neo4j://graph.schema#',
                          add_prefixes=[],
-                         sep = '/',
+                         sep='/',
                          uri_prop = 'uri') -> None:
         """
         A method that
             - on the neo4j nodes with labels equal to keys of :dict dictionary
             - sets additional label Resource (for handling in RDF)
-            - sets property with name :uri_prop with value that starts with prefix folled by a string
+            - sets property with name :uri_prop with value that starts with prefix followed by a string
             built by concatenating with separator :sep the list of :add_prefixes together with values of
             properties on each node that are specified in the values of the :dict (different set for each Neo4j label)
         Used for the purpose of being able to save and restore subgraphs using methods rdf_get_subgraph and
         rdf_import_subgraph_inline.
         :param dct: dictionary describing set of node properties that construct a primary key (and eventually uri) for that node
-        EXAMPLE:
-        dct = {
-            'Vehicle': ['type', 'model'],
-            'Car': ['model', 'fuel']
-        }
-        generate_uri(dct)
-        will set property uri like 'neo4j://graph.schema#car/toyota' on nodes with labels Vehicle
-        (in case v.type == 'car' and v.model == 'toyota')
-        and set property uri like 'neo4j://graph.schema#toyota/petrol' on nodes with labels Car
-        (in case c.model == 'toyota' and v.fuel == 'petrol')
+            EXAMPLE1 (simple):
+                dct = {
+                    'Vehicle': ['type', 'model'],
+                    'Car': ['model', 'fuel']
+                }
+                generate_uri(dct)
+                will set property uri like 'neo4j://graph.schema#car/toyota' on nodes with labels Vehicle
+                (in case v.type == 'car' and v.model == 'toyota')
+                and set property uri like 'neo4j://graph.schema#toyota/petrol' on nodes with labels Car
+                (in case c.model == 'toyota' and v.fuel == 'petrol')
+            EXAMPLE2 (properties and neighbouring properties):
+                graph = CREATE (v:Vehicle{`rdfs:label`: 'Toyota'}),
+                        (m:Model{`rdfs:label`: 'Prius'}),
+                        (v)-[:HAS_MODEL]->(m)
+                dct = {
+                "Vehicle": {"properties": "rdfs:label"},
+                "Model": {"properties": ["rdfs:label"],
+                           "neighbour": ["Vehicle","HAS_MODEL","rdfs:label"]}
+                }
+                set URI on 'Vehicle' nodes using node's property "rdfs:label"
+                    uri = 'neo4j://graph.schema#Vehicle/Toyota'
+                set URI on 'Model' nodes using node's property "rdfs:label" and neighbouring node's property "rdfs:label"
+                    uri = 'neo4j://graph.schema#Model/Toyota/Prius'
         :param prefix: a prefix for uri
         :param add_prefixes: list of prefixes to prepend uri with (after prefix), list joined with :sep separator
         :param sep: separator for joining add_perfixes and the primary keys into uri
         :return: None
         """
         for label, config in dct.items():
-            assert type(label) == str
-            assert type(config) in [list, str, dict]
-            where = ''
-            if type(config) == str:
+            assert isinstance(label, str)
+            assert any(isinstance(config, t) for t in [list, str, dict])
+            where = ""
+            neighbour = False
+            neighbour_query = ""
+            neighbour_ext = ["", "", ""]
+            if isinstance(config, str):
                 properties_ext = [config]
-            elif type(config) == list:
+            elif isinstance(config, list):
                 properties_ext = config
-            elif type(config) == dict:
+            elif isinstance(config, dict):
                 if 'properties' in config.keys():
-                    if type(config['properties']) == str:
+                    if isinstance(config['properties'], str):
                         properties_ext = [config['properties']]
-                    elif type(config['properties']) == list:
+                    elif isinstance(config['properties'], list):
                         properties_ext = config['properties']
+                if 'neighbour' in config.keys():
+                    assert isinstance(config['neighbour'], list), f"neighbour should be of type LIST (['label,'rel_type','prop'']) not {type(config['neighbour'])}"
+                    assert len(config['neighbour']) == 3, f"Expected 3 elements ([label,rel,prop]), received {len(config['neighbour'])}"
+                    neighbour = True
+                    neighbour_ext = config['neighbour']
+                    neighbour_query = """
+                                        CALL apoc.path.expand(x, $neighbour_rel, $neighbour_label, 1, 1)
+                                        YIELD path
+                                        WITH x,nodes(path) as neighbours
+                                        UNWIND neighbours as nbr
+                                        WITH DISTINCT nbr, x
+                                        WHERE x<>nbr WITH * ORDER BY id(nbr) WITH x, collect(nbr) as coll WITH x, apoc.map.mergeList(coll) as nbr"""
                 if 'where' in config.keys():
                     where = config['where']
             else:
                 properties_ext = []
+
             cypher = f"""
-            MATCH (x:`{label}`) 
+            MATCH (x:`{label}`)
             {where}
+            {neighbour_query}
             SET x:Resource            
             SET
             x.
             `{uri_prop}` = apoc.text.regreplace(
-                $prefix + apoc.text.join($add_prefixes + $opt_label + [prop in $properties | x[prop]], $sep)
+                $prefix + apoc.text.join($add_prefixes + $opt_label + {"nbr[$neighbour_prop] +" if neighbour else ""} [prop in $properties | x[prop]], $sep)
             ,
                 '\\s'
             ,
@@ -1796,6 +1826,13 @@ class NeoInterface:
                 'opt_label': ([label] if include_label_in_uri else []),
                 'properties': properties_ext
             }
+            if neighbour:
+                cypher_dict.update({
+                    'neighbour_label': neighbour_ext[0],
+                    'neighbour_rel': neighbour_ext[1],
+                    'neighbour_prop': neighbour_ext[2],
+                    })
+
             if self.debug:
                 print(f"""
                 query: {cypher}
