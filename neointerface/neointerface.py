@@ -1753,17 +1753,17 @@ class NeoInterface:
                 and set property uri like 'neo4j://graph.schema#toyota/petrol' on nodes with labels Car
                 (in case c.model == 'toyota' and v.fuel == 'petrol')
             EXAMPLE2 (properties and neighbouring properties):
-                graph = CREATE (v:Vehicle{`producer`: 'Toyota'}),
-                        (m:Model{`name`: 'Prius'}),
+                graph = CREATE (v:Vehicle{`rdfs:label`: 'Toyota'}),
+                        (m:Model{`rdfs:label`: 'Prius'}),
                         (v)-[:HAS_MODEL]->(m)
                 dct = {
-                "Vehicle": {"properties": "producer"},
-                "Model": {"properties": ["name"],
-                           "neighbour": ["Vehicle","HAS_MODEL","producer"]}
+                "Vehicle": {"properties": "rdfs:label"},
+                "Model": {"properties": ["rdfs:label"],
+                           "neighbour": ["Vehicle","HAS_MODEL","rdfs:label"]}
                 }
-                set URI on 'Vehicle' nodes using node's property "producer"
+                set URI on 'Vehicle' nodes using node's property "rdfs:label"
                     uri = 'neo4j://graph.schema#Vehicle/Toyota'
-                set URI on 'Model' nodes using node's property "name" and neighbouring node's property "producer"
+                set URI on 'Model' nodes using node's property "rdfs:label" and neighbouring node's property "rdfs:label"
                     uri = 'neo4j://graph.schema#Model/Toyota/Prius'
         :param prefix: a prefix for uri
         :param add_prefixes: list of prefixes to prepend uri with (after prefix), list joined with :sep separator
@@ -1798,11 +1798,7 @@ class NeoInterface:
                                         WITH x,nodes(path) as neighbours
                                         UNWIND neighbours as nbr
                                         WITH DISTINCT nbr, x
-                                        WHERE x<>nbr 
-                                        WITH * 
-                                        ORDER BY id(nbr) 
-                                        WITH x, collect(nbr) as coll 
-                                        WITH x, apoc.map.mergeList(coll) as nbr"""
+                                        WHERE x<>nbr WITH * ORDER BY id(nbr) WITH x, collect(nbr) as coll WITH x, apoc.map.mergeList(coll) as nbr"""
                 if 'where' in config.keys():
                     where = config['where']
             else:
