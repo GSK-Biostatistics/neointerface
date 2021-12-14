@@ -1,5 +1,41 @@
 {
+  "nodes": [
+    {
+      "id": "n0",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "caption": "Peter",
+      "style": {},
+      "labels": [],
+      "properties": {}
+    },
+    {
+      "id": "n1",
+      "position": {
+        "x": 234.98822768310075,
+        "y": 0
+      },
+      "caption": "GSK",
+      "style": {},
+      "labels": [],
+      "properties": {}
+    }
+  ],
+  "relationships": [
+    {
+      "id": "n0",
+      "type": "",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n1"
+    }
+  ],
   "style": {
+    "font-family": "sans-serif",
+    "background-color": "#ffffff",
     "node-color": "#ffffff",
     "border-width": 4,
     "border-color": "#000000",
@@ -47,62 +83,5 @@
     "property-color": "#000000",
     "property-font-size": 16,
     "property-font-weight": "normal"
-  },
-  "nodes": [
-    {
-      "id": "n0",
-      "position": {
-        "x": -392,
-        "y": -95
-      },
-      "caption": "",
-      "style": {},
-      "labels": [
-        "Person"
-      ],
-      "properties": {
-        "name": "Peter",
-        "age": "25",
-        "gender": "M"
-      }
-    },
-    {
-      "id": "n1",
-      "position": {
-        "x": -53.5,
-        "y": -95
-      },
-      "caption": "",
-      "style": {},
-      "labels": [
-        "Company"
-      ],
-      "properties": {
-        "name": "GSK"
-      }
-    },
-    {
-      "id": "n2",
-      "position": {
-        "x": -18,
-        "y": 266
-      },
-      "caption": "",
-      "style": {},
-      "labels": [
-        "Empty"
-      ],
-      "properties": {}
-    }
-  ],
-  "relationships": [
-    {
-      "id": "n0",
-      "type": "WORKS_AT",
-      "style": {},
-      "properties": {},
-      "fromId": "n0",
-      "toId": "n1"
-    }
-  ]
+  }
 }
