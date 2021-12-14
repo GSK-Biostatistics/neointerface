@@ -1421,50 +1421,69 @@ class NeoInterface:
         :return: result of the corresponding Neo4j query
         """
         assert merge_on is None or isinstance(merge_on, dict)
-        if merge_on:
-            q = """
-                UNWIND $map['nodes'] as nd
-                WITH *, apoc.coll.intersection(nd['labels'], keys($merge_on)) as hc_labels // list of relevant labels from the merge_on map
-                WITH *, apoc.coll.toSet(apoc.coll.flatten(apoc.map.values($merge_on, hc_labels))) as hc_props // list of relevant properties 
-                WITH *, [prop in hc_props WHERE prop in keys(nd['properties'])] as hc_props // filter to keep only the existing ones
-                WITH 
-                    *,
-                    CASE WHEN size(hc_props) > 0 THEN 
-                        {
-                            identProps: apoc.map.submap(nd['properties'], hc_props)
-                            ,
-                            onMatchProps: apoc.map.submap(nd['properties'], [key in keys(nd['properties']) 
-                                                                             WHERE NOT key IN hc_props])
-                        }
-                    ELSE
-                        {
-                            identProps: nd['properties']
-                            ,
-                            onMatchProps: {}
-                        }                   
-                    END as props                        
-                WITH 
-                    nd,
-                    props['identProps'] as identProps,
-                    props['onMatchProps'] as onMatchProps,
-                    props['onMatchProps'] as onCreateProps //TODO: change if these need to differ in the future                                          
-                CALL apoc.merge.node(nd['labels'], identProps, onMatchProps, onMatchProps)                       
-                YIELD node 
-                WITH apoc.map.fromPairs(collect([nd['id'], node])) as node_map
-                UNWIND $map['relationships'] as rel
-                call apoc.merge.relationship(node_map[rel['fromId']], rel['type'],  rel['properties'], {}, node_map[rel['toId']], {})
-                YIELD rel as relationship
-                WITH node_map, apoc.map.fromPairs(collect([rel['id'], relationship])) as rel_map
-                RETURN node_map, rel_map
-                """
-        else:
-            q = """
-            UNWIND $map['nodes'] as nd           
-            call apoc.merge.node(nd['labels'], nd['properties'], {}, {}) 
-            YIELD node 
+        # if merge_on:
+        q = """
+            UNWIND $map['nodes'] as nd
+            WITH *, apoc.coll.intersection(nd['labels'], keys($merge_on)) as hc_labels // list of relevant labels from the merge_on map
+            WITH *, apoc.coll.toSet(apoc.coll.flatten(apoc.map.values($merge_on, hc_labels))) as hc_props // list of relevant properties 
+            WITH *, [prop in hc_props WHERE prop in keys(nd['properties'])] as hc_props // filter to keep only the existing ones
+            WITH 
+                *,
+                CASE WHEN size(nd['labels']) = 0 THEN 
+                    ['No Label']
+                ELSE
+                    nd['labels']
+                END as labels,
+                CASE WHEN size(hc_props) > 0 THEN 
+                    {
+                        identProps: 
+                            CASE WHEN size(apoc.coll.intersection(keys(nd['properties']), hc_props)) = 0 and nd['caption'] <> '' THEN 
+                                {value: nd['caption']}
+                            ELSE
+                                apoc.map.submap(nd['properties'], hc_props)
+                            END
+                        ,
+                        onMatchProps: apoc.map.submap(nd['properties'], [key in keys(nd['properties']) 
+                                                                         WHERE NOT key IN hc_props])
+                    }
+                ELSE
+                    {
+                        identProps: 
+                            CASE WHEN size(keys(nd['properties'])) = 0 and nd['caption'] <> '' THEN 
+                                {value: nd['caption']}
+                            ELSE
+                                nd['properties']
+                            END
+                        ,
+                        onMatchProps: {}
+                    }                   
+                END as props                        
+            WITH 
+                nd,
+                labels,
+                props['identProps'] as identProps,
+                props['onMatchProps'] as onMatchProps,
+                props['onMatchProps'] as onCreateProps //TODO: change if these need to differ in the future
+            //dummy property if no properties are ident                                          
+            WITH *, CASE WHEN identProps = {} THEN {_dummy_prop_:1} ELSE identProps END as identProps 
+            CALL apoc.merge.node(labels, identProps, onMatchProps, onCreateProps) YIELD node
+            //eliminating dummy property
+            CALL apoc.do.when( 
+                identProps = {_dummy_prop_: 1},
+                'REMOVE node._dummy_prop_ RETURN node',
+                'RETURN node',
+                {node: node}
+            ) YIELD value
+            WITH * 
             WITH apoc.map.fromPairs(collect([nd['id'], node])) as node_map
             UNWIND $map['relationships'] as rel
-            call apoc.merge.relationship(node_map[rel['fromId']], rel['type'],  rel['properties'], {}, node_map[rel['toId']], {})
+            call apoc.merge.relationship(
+                node_map[rel['fromId']], 
+                CASE WHEN rel['type'] = '' OR rel['type'] IS NULL THEN 'RELATED' ELSE rel['type'] END, 
+                rel['properties'], 
+                {}, 
+                node_map[rel['toId']], {}
+            )
             YIELD rel as relationship
             WITH node_map, apoc.map.fromPairs(collect([rel['id'], relationship])) as rel_map
             RETURN node_map, rel_map

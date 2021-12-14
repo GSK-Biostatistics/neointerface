@@ -4,12 +4,12 @@ import pytest
 from neointerface import neointerface
 import json
 
+
 # Provide a database connection that can be used by the various tests that need it
 @pytest.fixture(scope="module")
 def db():
     neo_obj = neointerface.NeoInterface(debug=False, verbose=False)
     yield neo_obj
-
 
 
 def test_export_dbase_json(db):
@@ -32,7 +32,6 @@ def test_export_dbase_json(db):
                 [{"type":"node","id":"100","labels":["User"],"properties":{"name":"Eve"}}
                 ]
     '''
-
 
     # Create a 2nd node
     node_id2 = db.create_node_by_label_and_dict("User", {'name': 'Adam', 'age': 30})
@@ -60,8 +59,8 @@ def test_export_dbase_json(db):
     assert result['relationships'] == 1
     assert result['properties'] == 3
     expected_json = f'[{{"type":"node","id":"{node_id1}","labels":["User"],"properties":{{"name":"Eve"}}}},\n' \
-                    f' {{"type":"node","id":"{node_id2}","labels":["User"],"properties":{{"name":"Adam","age":30}}}},\n' \
-                    f' {{"id":"{rel_id_1}","type":"relationship","label":"LOVES","start":{{"id":"{node_id1}","labels":["User"]}},"end":{{"id":"{node_id2}","labels":["User"]}}}}\n]'
+        f' {{"type":"node","id":"{node_id2}","labels":["User"],"properties":{{"name":"Adam","age":30}}}},\n' \
+        f' {{"id":"{rel_id_1}","type":"relationship","label":"LOVES","start":{{"id":"{node_id1}","labels":["User"]}},"end":{{"id":"{node_id2}","labels":["User"]}}}}\n]'
     assert result['data'] == expected_json
     ''' EXAMPLE of JSON string:
         [{"type":"node","id":"108","labels":["User"],"properties":{"name":"Eve"}},
@@ -80,11 +79,11 @@ def test_export_dbase_json(db):
     result = db.export_dbase_json()
     assert result['nodes'] == 2
     assert result['relationships'] == 2
-    assert result['properties'] == 5    # Note that the 2 properties in the latest relationship went into the count
+    assert result['properties'] == 5  # Note that the 2 properties in the latest relationship went into the count
     expected_json = f'[{{"type":"node","id":"{node_id1}","labels":["User"],"properties":{{"name":"Eve"}}}},\n' \
-                    f' {{"type":"node","id":"{node_id2}","labels":["User"],"properties":{{"name":"Adam","age":30}}}},\n' \
-                    f' {{"id":"{rel_id_1}","type":"relationship","label":"LOVES","start":{{"id":"{node_id1}","labels":["User"]}},"end":{{"id":"{node_id2}","labels":["User"]}}}},\n' \
-                    f' {{"id":"{rel_id_2}","type":"relationship","label":"KNOWS","properties":{{"intensity":"eternal","since":1976}},"start":{{"id":"{node_id1}","labels":["User"]}},"end":{{"id":"{node_id2}","labels":["User"]}}}}\n]'
+        f' {{"type":"node","id":"{node_id2}","labels":["User"],"properties":{{"name":"Adam","age":30}}}},\n' \
+        f' {{"id":"{rel_id_1}","type":"relationship","label":"LOVES","start":{{"id":"{node_id1}","labels":["User"]}},"end":{{"id":"{node_id2}","labels":["User"]}}}},\n' \
+        f' {{"id":"{rel_id_2}","type":"relationship","label":"KNOWS","properties":{{"intensity":"eternal","since":1976}},"start":{{"id":"{node_id1}","labels":["User"]}},"end":{{"id":"{node_id2}","labels":["User"]}}}}\n]'
     assert result['data'] == expected_json
     ''' EXAMPLE of JSON string:
         [{"type":"node","id":"124","labels":["User"],"properties":{"name":"Eve"}},
@@ -93,19 +92,18 @@ def test_export_dbase_json(db):
          {"id":"12","type":"relationship","label":"KNOWS","properties":{"intensity":"eternal","since":1976},"start":{"id":"124","labels":["User"]},"end":{"id":"125","labels":["User"]}}
         ]
     '''
-    #print(result)
-    #print(result['data'])
+    # print(result)
+    # print(result['data'])
 
 
 def test_import_json_data(db):
-
     # Check various malformed JSON data dumps
     with pytest.raises(Exception):
-        assert db.import_json_data("Nonsensical JSON string")   # This ought to raise an Exception:
-                                                                # Incorrectly-formatted JSON string. Expecting value: line 1 column 1 (char 0)
+        assert db.import_json_data("Nonsensical JSON string")  # This ought to raise an Exception:
+        # Incorrectly-formatted JSON string. Expecting value: line 1 column 1 (char 0)
     with pytest.raises(Exception):
-        assert db.import_json_data('{"a": "this is good JSON, but not a list!"}')   # This ought to raise an Exception:
-                                                                                    # "The JSON string does not represent the expected list"
+        assert db.import_json_data('{"a": "this is good JSON, but not a list!"}')  # This ought to raise an Exception:
+        # "The JSON string does not represent the expected list"
     # TODO: extend
 
     # Now, test actual imports
@@ -121,8 +119,9 @@ def test_import_json_data(db):
 
     # TODO: extend
 
+
 def test_load_dict_simple(db):
-    dct = {"class": "Dataset", "name": "DM", "Column": [{"name": "USUBJID"}, {"name": "DMDTC", "type":"datetime"}]}
+    dct = {"class": "Dataset", "name": "DM", "Column": [{"name": "USUBJID"}, {"name": "DMDTC", "type": "datetime"}]}
     db.delete_nodes_by_label(delete_labels=["Dataset", "Column"])
     db.load_dict(dct, label="Dataset")
 
@@ -148,13 +147,15 @@ def test_load_dict_simple(db):
 
     assert res == expected
 
+
 def test_load_dict(db):
-    #loading dct
-    dct = {"jsona": {"jsonb":1, "jsonc":"xxx"}, "jsond": "zzz", "jsone": [{"jsonf":1}, {"jsonf":"ccc"}, "simple_prop"]}
+    # loading dct
+    dct = {"jsona": {"jsonb": 1, "jsonc": "xxx"}, "jsond": "zzz",
+           "jsone": [{"jsonf": 1}, {"jsonf": "ccc"}, "simple_prop"]}
     db.delete_nodes_by_label(delete_labels=["Root", "jsona", "jsonb", "jsonc", "jsond", "jsone", "jsonf"])
     db.load_dict(dct)
 
-    #checking result
+    # checking result
     # checking jsona part
     res = db.query_expanded("""
     MATCH (root:Root)-[rel:jsona]->(child:jsona)
@@ -171,7 +172,7 @@ def test_load_dict(db):
     assert end_node == exp_end_node
     assert res[0][1]['neo4j_type'] == 'jsona'
 
-    #checking jsone part
+    # checking jsone part
     res2 = db.query_expanded("""
         MATCH (root:Root)-[rel:jsone]->(child:jsone)
         RETURN root, rel, child
@@ -197,17 +198,19 @@ def test_load_dict(db):
     assert res2[0][1]['neo4j_type'] == 'jsone'
     assert res2[1][1]['neo4j_type'] == 'jsone'
 
+
 def test_load_arrows_dict(db):
     db.clean_slate()
     with open("data/arrows.json", 'r') as jsonfile:
         dct = json.load(jsonfile)
     db.load_arrows_dict(dct)
     q = """
-    MATCH path0 = (:Person{age:"25", gender:"M", name:"Peter"})-[:WORKS_AT]->(:Company {name:"GSK"})
-    RETURN path0
+    MATCH path0 = (:Person{age:"25", gender:"M", name:"Peter"})-[:WORKS_AT]->(:Company {name:"GSK"}), (e:Empty)
+    RETURN path0, e
     """
     res = db.query(q)
-    assert res == [{'path0': [{'gender': 'M', 'age': '25', 'name': 'Peter'}, 'WORKS_AT', {'name': 'GSK'}]}]
+    # print(res)
+    assert res == [{'path0': [{'gender': 'M', 'age': '25', 'name': 'Peter'}, 'WORKS_AT', {'name': 'GSK'}], 'e': {}}]
 
 
 def test_load_arrows_dict_merge_on(db):
@@ -232,5 +235,25 @@ def test_load_arrows_dict_merge_on(db):
     db.query("CREATE (:Person{name:'Adam'})")
     db.query("CREATE (:Person{name:'Peter'})")
     db.load_arrows_dict(dct, merge_on={'Person': ['name', 'non-existing-property']})
-    res2 = db.query("MATCH (p:Person) RETURN p")
-    assert len(res2) == 2
+    res3 = db.query("MATCH (p:Person) RETURN p")
+    assert len(res3) == 2
+
+    # with merge_on:
+    db.clean_slate()
+    db.query("CREATE (:Person{name:'Adam'})")
+    db.query("CREATE (:Person{name:'Peter'})")
+    db.load_arrows_dict(dct, merge_on={'Person': ['name', 'non-existing-property']})
+    res4 = db.query("MATCH (p:Person) RETURN p")
+    assert len(res4) == 2
+    res5 = db.query("MATCH (e:Empty) RETURN e")
+    assert len(res5) == 1
+
+
+def test_load_arrows_dict_caption(db):
+    db.clean_slate()
+    with open("data/arrows_caption.json", 'r') as jsonfile:
+        dct = json.load(jsonfile)
+    db.load_arrows_dict(dct)
+    res = db.query("MATCH path = (:`No Label`{value: 'Peter'})-[:RELATED]->(:`No Label`{value: 'GSK'}) RETURN path")
+    # print(res)
+    assert res == [{'path': [{'value': 'Peter'}, 'RELATED', {'value': 'GSK'}]}]
