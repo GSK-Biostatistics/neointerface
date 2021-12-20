@@ -8,8 +8,8 @@ def read_text(file_name: str):
     return open(os.path.join(file_name)).read()
 
 setuptools.setup(
-    name="neointerface",                    # This is the name of the package
-    version="3.1.1",                          # The initial release version
+    name="neointerface",                     # This is the name of the package
+    version="3.1.2",                         # The initial release version
     author="Alexey Kuznetsov, Julian West",  # Full name of the authors
     description="A Python interface to use the Neo4j graph database",
     long_description=long_description,      # Long description read from the the readme file

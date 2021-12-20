@@ -1,6 +1,6 @@
-from neo4j import GraphDatabase     # The Neo4j python connectivity library "Neo4j Python Driver"
-from neo4j import __version__ as neo4j_driver_version   # The version of the Neo4j driver being used
-import neo4j.graph                  # To check returned data types
+from neo4j import GraphDatabase  # The Neo4j python connectivity library "Neo4j Python Driver"
+from neo4j import __version__ as neo4j_driver_version  # The version of the Neo4j driver being used
+import neo4j.graph  # To check returned data types
 import numpy as np
 import pandas as pd
 import inspect
@@ -35,12 +35,13 @@ class NeoInterface:
 
         Based in part on Neo4jLiaison library (MIT License: https://github.com/BrainAnnex/neo4j-liaison)
     """
+
     def __init__(self,
                  host=os.environ.get("NEO4J_HOST"),
                  credentials=(os.environ.get("NEO4J_USER"), os.environ.get("NEO4J_PASSWORD")),
                  apoc=False,
                  rdf=False,
-                 rdf_host = None,
+                 rdf_host=None,
                  verbose=True,
                  debug=False,
                  autoconnect=True):
@@ -65,26 +66,24 @@ class NeoInterface:
         self.rdf = rdf
         self.rdf_host = rdf_host
         if self.verbose:
-            print ("---------------- Initializing NeoInterface -------------------")
-        if self.autoconnect: #TODO: add test for autoconnect == False
+            print("---------------- Initializing NeoInterface -------------------")
+        if self.autoconnect:  # TODO: add test for autoconnect == False
             # Attempt to create a driver object
             self.connect()
 
             # Extra initializations if APOC custom procedures (note: APOC must also be enabled on the database)
-            #if apoc:
-                #self.setup_all_apoc_custom()
+            # if apoc:
+            # self.setup_all_apoc_custom()
             # Extra initializations if RDF support required
             if self.rdf:
                 self.rdf_setup_connection()
-
-
 
     def connect(self) -> None:
         try:
             if self.credentials:
                 user, password = self.credentials  # This unpacking will work whether the credentials were passed as a tuple or list
                 self.driver = GraphDatabase.driver(self.host, auth=(
-                user, password))  # Object to connect to Neo4j's Bolt driver for Python
+                    user, password))  # Object to connect to Neo4j's Bolt driver for Python
             else:
                 self.driver = GraphDatabase.driver(self.host,
                                                    auth=None)  # Object to connect to Neo4j's Bolt driver for Python
@@ -94,14 +93,13 @@ class NeoInterface:
             error_msg = f"CHECK IF NEO4J IS RUNNING! While instantiating the NeoInterface object, failed to create the driver: {ex}"
             raise Exception(error_msg)
 
-
     def rdf_config(self) -> None:
         try:
             self.query("CALL n10s.graphconfig.init({handleVocabUris:'IGNORE'});")
         except:
             if self.debug:
                 print("Config already created, make sure the config is correct")
-        self.create_constraint(label="Resource", key="uri", type = "UNIQUE", name="n10s_unique_uri")
+        self.create_constraint(label="Resource", key="uri", type="UNIQUE", name="n10s_unique_uri")
 
     def rdf_setup_connection(self) -> None:
         self.rdf_config()
@@ -120,11 +118,9 @@ class NeoInterface:
             error_msg = f"CHECK IF RDF ENDPOINT IS SET UP CORRECTLY! While instantiating the NeoInterface object, failed to connect to {self.rdf_host}"
             raise Exception(error_msg)
 
-
     def version(self) -> str:
         # Return the version of the Neo4j driver being used.  EXAMPLE: "4.2.1"
         return neo4j_driver_version
-
 
     def close(self) -> None:
         """
@@ -135,16 +131,13 @@ class NeoInterface:
         if self.driver is not None:
             self.driver.close()
 
-
-
-
     ############################################################################################
     #                                                                                          #
     #                           METHODS TO RUN GENERIC QUERIES                                 #
     #                                                                                          #
     ############################################################################################
 
-    def query(self, q: str, params = None) -> []:
+    def query(self, q: str, params=None) -> []:
         """
         Run a general Cypher query and return a list of dictionaries.
         In cases of error, return an empty list.
@@ -183,14 +176,12 @@ class NeoInterface:
             if result is None:
                 return []
 
-            data_as_list = result.data()        # Return the result as a list of dictionaries.
-                                                #       This must be done inside the "with" block,
-                                                #       while the session is still open
+            data_as_list = result.data()  # Return the result as a list of dictionaries.
+            #       This must be done inside the "with" block,
+            #       while the session is still open
         return data_as_list
 
-
-
-    def query_expanded(self, q: str, params = None, flatten = False) -> []:
+    def query_expanded(self, q: str, params=None, flatten=False) -> []:
         """
         Expanded version of query(), meant to extract additional info for queries that return Graph Data Types,
         i.e. nodes, relationships or paths,
@@ -262,21 +253,23 @@ class NeoInterface:
                     #       <Node id=95 labels=frozenset({'car'}) properties={'color': 'white', 'make': 'Toyota'}>
                     #       <Relationship id=12 nodes=(<Node id=147 labels=frozenset() properties={}>, <Node id=150 labels=frozenset() properties={}>) type='bought_by' properties={'price': 7500}>
 
-                    neo4j_properties = dict(item.items())   # EXAMPLE: {'gender': 'M', 'age': 99}
+                    neo4j_properties = dict(item.items())  # EXAMPLE: {'gender': 'M', 'age': 99}
 
                     if isinstance(item, neo4j.graph.Node):
-                        neo4j_properties["neo4j_id"] = item.id                  # Example: 227
-                        neo4j_properties["neo4j_labels"] = list(item.labels)    # Example: ['person', 'client']
+                        neo4j_properties["neo4j_id"] = item.id  # Example: 227
+                        neo4j_properties["neo4j_labels"] = list(item.labels)  # Example: ['person', 'client']
 
                     elif isinstance(item, neo4j.graph.Relationship):
-                        neo4j_properties["neo4j_id"] = item.id                  # Example: 227
-                        neo4j_properties["neo4j_start_node"] = item.start_node  # A neo4j.graph.Node object with "id", "labels" and "properties"
-                        neo4j_properties["neo4j_end_node"] = item.end_node      # A neo4j.graph.Node object with "id", "labels" and "properties"
-                                                                                #   Example: <Node id=118 labels=frozenset({'car'}) properties={'color': 'white'}>
-                        neo4j_properties["neo4j_type"] = item.type              # The name of the relationship
+                        neo4j_properties["neo4j_id"] = item.id  # Example: 227
+                        neo4j_properties[
+                            "neo4j_start_node"] = item.start_node  # A neo4j.graph.Node object with "id", "labels" and "properties"
+                        neo4j_properties[
+                            "neo4j_end_node"] = item.end_node  # A neo4j.graph.Node object with "id", "labels" and "properties"
+                        #   Example: <Node id=118 labels=frozenset({'car'}) properties={'color': 'white'}>
+                        neo4j_properties["neo4j_type"] = item.type  # The name of the relationship
 
                     elif isinstance(item, neo4j.graph.Path):
-                        neo4j_properties["neo4j_nodes"] = item.nodes            # The sequence of Node objects in this path
+                        neo4j_properties["neo4j_nodes"] = item.nodes  # The sequence of Node objects in this path
 
                     if flatten:
                         data_as_list.append(neo4j_properties)
@@ -288,16 +281,14 @@ class NeoInterface:
 
             return data_as_list
 
-
-
-
     ##################################################################################################
     #                                                                                                #
     #                                    METHODS TO RETRIEVE DATA                                    #
     #                                                                                                #
     ##################################################################################################
 
-    def get_single_field(self, field_name: str, labels="", properties_condition=None, cypher_clause=None, cypher_dict=None) -> list:
+    def get_single_field(self, field_name: str, labels="", properties_condition=None, cypher_clause=None,
+                         cypher_dict=None) -> list:
         """
         For situations where one is fetching just 1 field,
         and one desires a list of those values, rather than a dictionary of records.
@@ -320,8 +311,6 @@ class NeoInterface:
         single_field_list = [record.get(field_name) for record in record_list]
 
         return single_field_list
-
-
 
     def get_nodes(self, labels="", properties_condition=None, cypher_clause=None, cypher_dict=None,
                   return_nodeid=False, return_labels=False) -> [{}]:
@@ -402,10 +391,8 @@ class NeoInterface:
 
         return result_list
 
-
-
     def get_df(self, labels="", properties_condition=None, cypher_clause=None, cypher_dict=None,
-                  return_nodeid=False, return_labels=False) -> pd.DataFrame:
+               return_nodeid=False, return_labels=False) -> pd.DataFrame:
         """
         Same as get_nodes(), but the result is returned as a Pandas dataframe
 
@@ -419,11 +406,9 @@ class NeoInterface:
         :return:                A Pandas dataframe
         """
         result_list = self.get_nodes(labels=labels, properties_condition=properties_condition,
-                                    cypher_clause=cypher_clause, cypher_dict=cypher_dict,
-                                    return_nodeid=return_nodeid, return_labels=return_labels)
+                                     cypher_clause=cypher_clause, cypher_dict=cypher_dict,
+                                     return_nodeid=return_nodeid, return_labels=return_labels)
         return pd.DataFrame(result_list)
-
-
 
     def _match_nodes(self, labels, properties_condition=None, cypher_clause=None, cypher_dict=None) -> (str, dict):
         """
@@ -476,21 +461,22 @@ class NeoInterface:
             (clause_from_properties, props_data_binding) = self.dict_to_cypher(properties_condition)
 
             if cypher_dict is None:
-                cypher_dict = props_data_binding        # The properties dictionary is to be used as the Cypher-binding dictionary
+                cypher_dict = props_data_binding  # The properties dictionary is to be used as the Cypher-binding dictionary
             else:
                 # Merge the properties dictionary into the existing cypher_dict, PROVIDED that there's no conflict
-                overlap = cypher_dict.keys() & props_data_binding.keys()    # Take the set intersection
-                if overlap != set():                                        # If not equal to the empty set
-                    raise Exception(f"`cypher_dict` should not contain any keys of the form `par_n` where n is an integer. "
-                                    f"Those names are reserved for internal use. Conflicting names: {overlap}")
+                overlap = cypher_dict.keys() & props_data_binding.keys()  # Take the set intersection
+                if overlap != set():  # If not equal to the empty set
+                    raise Exception(
+                        f"`cypher_dict` should not contain any keys of the form `par_n` where n is an integer. "
+                        f"Those names are reserved for internal use. Conflicting names: {overlap}")
 
-                cypher_dict.update(props_data_binding)      # Merge the properties dictionary into the existing cypher_dict
+                cypher_dict.update(props_data_binding)  # Merge the properties dictionary into the existing cypher_dict
 
         if cypher_dict is None:
             cypher_dict = {}
 
         if cypher_clause is not None:
-            cypher_clause = cypher_clause.strip()           # Zap any leading/trailing blanks
+            cypher_clause = cypher_clause.strip()  # Zap any leading/trailing blanks
 
         # Turn labels (string or list/tuple of labels) into a string suitable for inclusion into Cypher
         cypher_labels = self._prepare_labels(labels)
@@ -502,8 +488,6 @@ class NeoInterface:
             cypher += f" WHERE {cypher_clause}"
 
         return (cypher, cypher_dict)
-
-
 
     def _prepare_labels(self, labels) -> str:
         """
@@ -527,11 +511,9 @@ class NeoInterface:
 
         cypher_labels = ""
         for single_label in labels:
-            cypher_labels += f":`{single_label}`"       # EXAMPLE: ":`label 1`:`label 2`"
+            cypher_labels += f":`{single_label}`"  # EXAMPLE: ":`label 1`:`label 2`"
 
         return cypher_labels
-
-
 
     def get_parents_and_children(self, node_id: int) -> {}:
         """
@@ -547,12 +529,12 @@ class NeoInterface:
         with self.driver.session() as new_session:
             # Fetch the parents
             cypher = f"MATCH (parent)-[inbound]->(n) WHERE id(n) = {node_id} " \
-                      "RETURN id(parent) AS id, labels(parent) AS labels, type(inbound) AS rel"
+                "RETURN id(parent) AS id, labels(parent) AS labels, type(inbound) AS rel"
             if self.debug:
                 print(f"""
                 query: {cypher}            
                 """)
-            result_obj = new_session.run(cypher)   # A new neo4j.Result object
+            result_obj = new_session.run(cypher)  # A new neo4j.Result object
             parent_list = result_obj.data()
             # EXAMPLE of parent_list:
             #       [{'id': 163, 'labels': ['Subject'], 'rel': 'HAS_TREATMENT'},
@@ -562,12 +544,12 @@ class NeoInterface:
 
             # Fetch the children
             cypher = f"MATCH (n)-[outbound]->(child) WHERE id(n) = {node_id} " \
-                      "RETURN id(child) AS id, labels(child) AS labels, type(outbound) AS rel"
+                "RETURN id(child) AS id, labels(child) AS labels, type(outbound) AS rel"
             if self.debug:
                 print(f"""
                 query: {cypher}      
                 """)
-            result_obj = new_session.run(cypher)   # A new neo4j.Result object
+            result_obj = new_session.run(cypher)  # A new neo4j.Result object
             child_list = result_obj.data()
             # EXAMPLE of child_list:
             #       [{'id': 107, 'labels': ['Source Data Row'], 'rel': 'FROM_DATA'},
@@ -576,8 +558,6 @@ class NeoInterface:
                 print(f"child_list for node {node_id}:", child_list)
 
         return {'parent_list': parent_list, 'child_list': child_list}
-
-
 
     def get_labels(self) -> [str]:
         """
@@ -589,7 +569,6 @@ class NeoInterface:
         results = self.query("call db.labels() yield label return label")
         return [x['label'] for x in results]
 
-
     def get_relationshipTypes(self) -> [str]:
         """
         Extract and return a list of all the Neo4j relationship types present in the database.
@@ -599,7 +578,7 @@ class NeoInterface:
         results = self.query("call db.relationshipTypes() yield relationshipType return relationshipType")
         return [x['relationshipType'] for x in results]
 
-    def get_label_properties(self, label:str) -> list:
+    def get_label_properties(self, label: str) -> list:
         q = """
         CALL db.schema.nodeTypeProperties() 
         YIELD nodeLabels, propertyName
@@ -609,11 +588,8 @@ class NeoInterface:
         """
         params = {'label': label}
         if self.debug:
-            print("q : " , q, " | params : ", params)
+            print("q : ", q, " | params : ", params)
         return [res['propertyName'] for res in self.query(q, params)]
-
-
-
 
     #########################################################################################
     #                                                                                       #
@@ -636,7 +612,7 @@ class NeoInterface:
         :return:        A (possibly-empty) Pandas dataframe
         """
         if types:
-            where = "with * where type in $types"   # Define a restrictive clause
+            where = "with * where type in $types"  # Define a restrictive clause
         else:
             types = []
             where = ""
@@ -653,8 +629,6 @@ class NeoInterface:
             return pd.DataFrame(list(results))
         else:
             return pd.DataFrame([], columns=['name'])
-
-
 
     def get_constraints(self) -> pd.DataFrame:
         """
@@ -678,8 +652,6 @@ class NeoInterface:
         else:
             return pd.DataFrame([], columns=['name'])
 
-
-
     def create_index(self, label: str, key: str) -> bool:
         """
         Create a new database index, unless it already exists,
@@ -698,13 +670,13 @@ class NeoInterface:
         :param key:     A string with the key (property) name to which the index is to be applied
         :return:        True if a new index was created, or False otherwise
         """
-        existing_indexes = self.get_indexes()   # A Pandas dataframe with info about indexes;
-                                                #       in particular 2 columns named "labelsOrTypes" and "properties"
+        existing_indexes = self.get_indexes()  # A Pandas dataframe with info about indexes;
+        #       in particular 2 columns named "labelsOrTypes" and "properties"
 
         # Index is created if not already exists.
         # a standard name for the index is assigned: `{label}.{key}`
         existing_standard_name_pairs = list(existing_indexes.apply(
-                lambda x: ("_".join(x['labelsOrTypes']), "_".join(x['properties'])), axis=1))   # Proceed by row
+            lambda x: ("_".join(x['labelsOrTypes']), "_".join(x['properties'])), axis=1))  # Proceed by row
         """
         For example, if the Pandas dataframe existing_indexes contains the following columns: 
                             labelsOrTypes     properties
@@ -725,8 +697,6 @@ class NeoInterface:
         else:
             return False
 
-
-
     def create_constraint(self, label: str, key: str, type="UNIQUE", name=None) -> bool:
         """
         Create a uniqueness constraint for a node property in the graph,
@@ -744,7 +714,7 @@ class NeoInterface:
         :return:        True if a new constraint was created, or False otherwise
         """
         assert type == "UNIQUE"
-        #TODO: consider other types of constraints
+        # TODO: consider other types of constraints
 
         existing_constraints = self.get_constraints()
         # constraint is created if not already exists.
@@ -766,8 +736,6 @@ class NeoInterface:
         except Exception:
             return False
 
-
-
     def drop_index(self, name: str) -> bool:
         """
         Eliminate the index with the specified name.
@@ -781,11 +749,10 @@ class NeoInterface:
                 print(f"""
                 query: {q}
                 """)
-            self.query(q)      # Note: it crashes if the index doesn't exist
+            self.query(q)  # Note: it crashes if the index doesn't exist
             return True
         except Exception:
             return False
-
 
     def drop_all_indexes(self, including_constraints=True) -> None:
         """
@@ -804,8 +771,6 @@ class NeoInterface:
         for name in indexes['name']:
             self.drop_index(name)
 
-
-
     def drop_constraint(self, name: str) -> bool:
         """
         Eliminate the constraint with the specified name.
@@ -819,12 +784,10 @@ class NeoInterface:
                 print(f"""
                 query: {q}
                 """)
-            self.query(q)     # Note: it crashes if the constraint doesn't exist
+            self.query(q)  # Note: it crashes if the constraint doesn't exist
             return True
         except Exception:
             return False
-
-
 
     def drop_all_constraints(self) -> None:
         """
@@ -835,9 +798,6 @@ class NeoInterface:
         constraints = self.get_constraints()
         for name in constraints['name']:
             self.drop_constraint(name)
-
-
-
 
     #####################################################################################
     #                                                                                   #
@@ -874,18 +834,16 @@ class NeoInterface:
         cypher = f"CREATE (n {cypher_labels} {attributes_str}) RETURN n"
 
         if self.debug:
-                print(f"""
+            print(f"""
                 In create_node_by_label_and_dict().
                 query: {cypher}
                 parameters: {data_dictionary}
                 """)
 
         result_list = self.query_expanded(cypher, data_dictionary, flatten=True)
-        return result_list[0]['neo4j_id']           # Return the Neo4j internal ID of the node just created
+        return result_list[0]['neo4j_id']  # Return the Neo4j internal ID of the node just created
 
-
-
-    def delete_nodes_by_label(self, delete_labels=None, keep_labels=None, batch_size = 50000) -> None:
+    def delete_nodes_by_label(self, delete_labels=None, keep_labels=None, batch_size=50000) -> None:
         """
         Empty out (by default completely) the Neo4j database.
         Optionally, only delete nodes with the specified labels, or only keep nodes with the given labels.
@@ -902,7 +860,7 @@ class NeoInterface:
             if self.verbose:
                 print(f" --- Deleting all nodes in the database ---")
 
-            if batch_size:      # In order to avoid memory errors, delete data in batches
+            if batch_size:  # In order to avoid memory errors, delete data in batches
                 q = f"""
                       call apoc.periodic.iterate(
                       'MATCH (n) RETURN n',
@@ -923,17 +881,17 @@ class NeoInterface:
             return
 
         if not delete_labels:
-            delete_labels = self.get_labels()   # If no specific labels to delete were given,
-                                                # then consider all labels for possible deletion (unless marked as "keep", below)
+            delete_labels = self.get_labels()  # If no specific labels to delete were given,
+            # then consider all labels for possible deletion (unless marked as "keep", below)
         else:
             if type(delete_labels) == str:
-                delete_labels = [delete_labels] # If a string was passed, turn it into a list
+                delete_labels = [delete_labels]  # If a string was passed, turn it into a list
 
         if not keep_labels:
-            keep_labels = []    # Initialize list of labels to keep, if not provided
+            keep_labels = []  # Initialize list of labels to keep, if not provided
         else:
             if type(keep_labels) == str:
-                keep_labels = [keep_labels] # If a string was passed, turn it into a list
+                keep_labels = [keep_labels]  # If a string was passed, turn it into a list
 
         # Delete all nodes with labels in the delete_labels list,
         #   EXCEPT for any label in the keep_labels list
@@ -948,8 +906,6 @@ class NeoInterface:
                     """)
                 self.query(q)
 
-
-
     def clean_slate(self, keep_labels=None, drop_indexes=True, drop_constraints=True) -> None:
         """
         Use this to get rid of absolutely everything in the database.
@@ -960,14 +916,13 @@ class NeoInterface:
         :return:                None
         """
         if self.rdf:
-            self.delete_nodes_by_label(keep_labels=(keep_labels + ['_GraphConfig'] if keep_labels else ['_GraphConfig']))
+            self.delete_nodes_by_label(
+                keep_labels=(keep_labels + ['_GraphConfig'] if keep_labels else ['_GraphConfig']))
         else:
             self.delete_nodes_by_label(keep_labels=keep_labels)
 
         if drop_indexes:
             self.drop_all_indexes(including_constraints=drop_constraints)
-
-
 
     def set_fields(self, labels, set_dict, properties_condition=None, cypher_clause=None, cypher_dict=None) -> None:
         """
@@ -990,13 +945,13 @@ class NeoInterface:
                                                         cypher_clause=cypher_clause, cypher_dict=cypher_dict)
 
         set_list = []
-        for field_name, field_value in set_dict.items():    # field_name, field_value are key/values in set_dict
-            set_list.append("n.`" + field_name + "` = $" + field_name)      # Example:  "n.`field1` = $field1"
-            cypher_dict[field_name] = field_value                           # Extend the Cypher data-binding dictionary
+        for field_name, field_value in set_dict.items():  # field_name, field_value are key/values in set_dict
+            set_list.append("n.`" + field_name + "` = $" + field_name)  # Example:  "n.`field1` = $field1"
+            cypher_dict[field_name] = field_value  # Extend the Cypher data-binding dictionary
 
         # Example of data_binding at the end of the loop: {"field1": value1, "field2": value2}
 
-        set_clause = "SET " + ", ".join(set_list)   # Example:  "SET n.field1 = $field1, n.field2 = $field2"
+        set_clause = "SET " + ", ".join(set_list)  # Example:  "SET n.field1 = $field1, n.field2 = $field2"
 
         cypher = cypher_match + set_clause
 
@@ -1051,7 +1006,7 @@ class NeoInterface:
             if type(target_label) == str:
                 target_label = [target_label]
         if type(property_mapping) == list:
-            property_mapping = {k:k for k in property_mapping}
+            property_mapping = {k: k for k in property_mapping}
         for key in property_mapping.keys():
             self.create_index(label, key)
         q_match_part = f"MATCH (data:`{label}`) RETURN data"
@@ -1080,7 +1035,7 @@ class NeoInterface:
                    ,
                    '
                        WITH data, apoc.coll.intersection(keys($mapping), keys(data)) as common_keys
-                       {("" if mode=="create" else "WHERE size(common_keys) > 0")}
+                       {("" if mode == "create" else "WHERE size(common_keys) > 0")}
                        WITH data, apoc.map.fromLists([key in common_keys | $mapping[key]], [key in common_keys | data[key]]) as submap                                               
                        call apoc.{mode}.node($target_label, submap) YIELD node MERGE (data){rel_left}-[:`{relationship}`]-{rel_right}(node)
                    ',        
@@ -1088,7 +1043,7 @@ class NeoInterface:
                    YIELD total, batches, failedBatches
                    RETURN total, batches, failedBatches                                                                    
                """
-        inner_params = {'target_label':target_label,
+        inner_params = {'target_label': target_label,
                         'mapping': property_mapping}
         if q_match_altered:
             inner_params = {**inner_params, 'cypher': cypher, 'cypher_dict': cypher_dict}
@@ -1106,8 +1061,8 @@ class NeoInterface:
     #########################################################################################
 
     def link_entities(self,
-                      left_class:str,
-                      right_class:str,
+                      left_class: str,
+                      right_class: str,
                       relationship="_default_",
                       cond_via_node=None,
                       cond_left_rel=None,
@@ -1149,7 +1104,8 @@ class NeoInterface:
         cond_right_rel_type = re.sub(r'^(\<)?(.*?)(\>)?$', r'\2', cond_right_rel)
         if cond_cypher:
             if self.verbose:
-                print(f"Using cypher condition to link nodes. Labels: {left_class}, {right_class}; Cypher: {cond_cypher}")
+                print(
+                    f"Using cypher condition to link nodes. Labels: {left_class}, {right_class}; Cypher: {cond_cypher}")
                 periodic_part1 = """
                 CALL apoc.cypher.run($cypher, $cypher_dict) YIELD value
                 RETURN value.`left` as left, value.`right` as right                                                
@@ -1177,7 +1133,8 @@ class NeoInterface:
             print("        Query parameters: ", params)
         self.query(q, params)
 
-    def link_nodes_on_matching_property(self, label1:str, label2:str, property1:str, rel:str, property2=None) -> None:
+    def link_nodes_on_matching_property(self, label1: str, label2: str, property1: str, rel: str,
+                                        property2=None) -> None:
         """
         Locate any pair of Neo4j nodes where all of the following hold:
                             1) the first one has label1
@@ -1205,9 +1162,8 @@ class NeoInterface:
             """)
         self.query(q)
 
-
-
-    def link_nodes_on_matching_property_value(self, label1:str, label2:str, prop_name:str, prop_value:str, rel:str) -> None:
+    def link_nodes_on_matching_property_value(self, label1: str, label2: str, prop_name: str, prop_value: str,
+                                              rel: str) -> None:
         """
         Locate any pair of Neo4j nodes where all of the following hold:
                             1) the first one has label1
@@ -1232,9 +1188,7 @@ class NeoInterface:
             """)
         self.query(q)
 
-
-
-    def link_nodes_by_ids(self, node_id1:int, node_id2:int, rel:str, rel_props = None) -> None:
+    def link_nodes_by_ids(self, node_id1: int, node_id2: int, rel: str, rel_props=None) -> None:
         """
         Locate the pair of Neo4j nodes with the given Neo4j internal ID's.
         If they are found, add a relationship - with the name specified in the rel argument,
@@ -1270,16 +1224,14 @@ class NeoInterface:
 
         self.query(q, cypher_dict)
 
-
-
-
     #####################################################################################################
     #                                                                                                   #
     #                                   METHODS TO READ IN DATA                                         #
     #                                                                                                   #
     #####################################################################################################
 
-    def load_df(self, df:pd.DataFrame, label:str, merge=False, primary_key=None, rename=None, max_chunk_size = 10000) -> None:
+    def load_df(self, df: pd.DataFrame, label: str, merge=False, primary_key=None, rename=None,
+                max_chunk_size=10000) -> list:
         """
         Load a Pandas data frame into Neo4j.
         Each line is loaded as a separate node.
@@ -1296,7 +1248,7 @@ class NeoInterface:
         :param rename:          Optional dictionary to rename the Pandas dataframe's columns to
                                     EXAMPLE {"current_name": "name_we_want"}
         :param max_chunk_size:  To limit the number of rows loaded at one time
-        :return:                None
+        :return:                List of node ids, created in the operation
         """
         if isinstance(df, pd.Series):
             df = pd.DataFrame(df)
@@ -1311,16 +1263,16 @@ class NeoInterface:
             primary_key_s = '{' + f'`{primary_key}`:record[\'{primary_key}\']' + '}'
             # EXAMPLE of primary_key_s: "{patient_id:record['patient_id']}"
 
-        op = 'MERGE' if (merge and primary_key) else 'CREATE'     # A MERGE or CREATE operation, as needed
+        op = 'MERGE' if (merge and primary_key) else 'CREATE'  # A MERGE or CREATE operation, as needed
         res = []
-        for df_chunk in np.array_split(df, int(len(df.index)/max_chunk_size)+1):    # Split the operation into batches
+        for df_chunk in np.array_split(df, int(len(df.index) / max_chunk_size) + 1):  # Split the operation into batches
             cypher = f'''
             WITH $data AS data 
             UNWIND data AS record {op} (x:`{label}`{primary_key_s}) 
             SET x=record 
             RETURN id(x) as node_id 
             '''
-            cypher_dict = {'data':df_chunk.to_dict(orient = 'records')}
+            cypher_dict = {'data': df_chunk.to_dict(orient='records')}
             if self.debug:
                 print(f"""
                 query: {cypher}
@@ -1331,8 +1283,7 @@ class NeoInterface:
                 res += [r['node_id'] for r in res_chunk]
         return res
 
-
-    def load_dict(self, dct:dict, label="Root", rel_prefix="", maxdepth=10):
+    def load_dict(self, dct: dict, label="Root", rel_prefix="", maxdepth=10):
         """
         Loads python dict to Neo4j (auto-unpacking hierarchy)
         Children of type dict converted into related nodes with relationship {rel_prefix}_{key}
@@ -1346,7 +1297,7 @@ class NeoInterface:
         :param maxdepth: maximum possible depth(of children) of dict
         :return: None
         """
-        #initial load of the complete json as a node
+        # initial load of the complete json as a node
         j = json.dumps(dct)
         self.query(
             """
@@ -1358,7 +1309,7 @@ class NeoInterface:
             {'label': label, 'value': j}
         )
         i = 0
-        #unpacking hierarchy (looping until no nodes with JSON label are left or maxdepth reached
+        # unpacking hierarchy (looping until no nodes with JSON label are left or maxdepth reached
         while (self.query("MATCH (j:JSON) RETURN j LIMIT 1")) and i < maxdepth:
             self.query("""
                 MATCH (j:JSON)
@@ -1405,7 +1356,7 @@ class NeoInterface:
                 """, {"rel_prefix": rel_prefix})
             i += 1
 
-    def load_arrows_dict(self, dct: dict, merge_on = None):
+    def load_arrows_dict(self, dct: dict, merge_on=None):
         """
         Loads data created in prototyping tool https://arrows.app/
         Uses MERGE statement separately on each node and each relationship using all properties as identifying properties
@@ -1495,13 +1446,11 @@ class NeoInterface:
         else:
             return None
 
-
     ############################################################################################
     #                                                                                          #
     #                               UTILITY METHODS                                            #
     #                                                                                          #
     ############################################################################################
-
 
     def dict_to_cypher(self, data_dict: {}) -> (str, {}):
         """
@@ -1531,14 +1480,14 @@ class NeoInterface:
         if data_dict is None or data_dict == {}:
             return ("", {})
 
-        rel_props_list = []     # A list of strings
+        rel_props_list = []  # A list of strings
         data_dictionary = {}
-        parameter_count = 1     # Sequential integers used in the data dictionary, such as "par_1", "par_2", etc.
+        parameter_count = 1  # Sequential integers used in the data dictionary, such as "par_1", "par_2", etc.
         for prop_key, prop_value in data_dict.items():
-            parameter_token =  f"par_{parameter_count}"          # EXAMPLE: "par_3"
+            parameter_token = f"par_{parameter_count}"  # EXAMPLE: "par_3"
 
             # Extend the list of Cypher property relationships and their corresponding data dictionary
-            rel_props_list.append(f"`{prop_key}`: ${parameter_token}")    # The $ refers to the data binding
+            rel_props_list.append(f"`{prop_key}`: ${parameter_token}")  # The $ refers to the data binding
             data_dictionary[parameter_token] = prop_value
             parameter_count += 1
 
@@ -1548,16 +1497,13 @@ class NeoInterface:
 
         return (rel_props_str, data_dictionary)
 
-
-
-
     ############################################################################################
     #                                                                                          #
     #                           METHODS TO SUPPORT DEBUGGING                                   #
     #                                                                                          #
     ############################################################################################
 
-    def neo4j_query_params_from_dict(self, params:dict, char_limit = 500) -> str:
+    def neo4j_query_params_from_dict(self, params: dict, char_limit=500) -> str:
         """
         Given a Python dictionary, meant to represent value/key pairs,
         compose and return a string suitable for pasting into the Neo4j browser, for testing purposes.
@@ -1571,14 +1517,15 @@ class NeoInterface:
         :param char_limit: limit number of characters to include in each line
         :return:           string of parameters to paste into Neo4j browser for testing procedures in the browser
         """
-        s = ""      # String suitable for pasting into the Neo4j browser
+        s = ""  # String suitable for pasting into the Neo4j browser
         for key, item in params.items():
             prefix = "".join([":param ", key, "=> "])
 
             if type(item) == int:
                 res = ("".join([prefix, str(item), ";"]))
             elif type(item) == dict:
-                cypher_dict = "".join(["apoc.map.fromPairs([" + ",".join([f"['{key2}', {item2}]" for key2, item2 in item.items()]) + "])"])
+                cypher_dict = "".join(["apoc.map.fromPairs([" + ",".join(
+                    [f"['{key2}', {item2}]" for key2, item2 in item.items()]) + "])"])
                 res = ("".join([prefix, cypher_dict, ";"]))
             else:
                 res = ("".join([prefix, "".join(['\'', str(item), '\'']), ";"]))
@@ -1586,9 +1533,6 @@ class NeoInterface:
             s += res[:char_limit] + "\n"
 
         return s
-
-
-
 
     ############################################################################################
     #                                                                                          #
@@ -1638,19 +1582,17 @@ class NeoInterface:
             YIELD nodes, relationships, properties, data
             RETURN nodes, relationships, properties, data
             '''
-        result = self.query(cypher)     # It returns a list with a single element
+        result = self.query(cypher)  # It returns a list with a single element
         export_dict = result[0]
-        #print(export_dict)
+        # print(export_dict)
 
         pseudo_json = export_dict["data"]
         # Who knows why, the string returned by the APOC function isn't actual JSON! :o  Some tweaking needed to produce valid JSON...
         json = "[" + pseudo_json.replace("\n", ",\n ") + "\n]"  # The newlines \n make the JSON much more human-readable
         export_dict["data"] = json
-        #print(export_dict)
+        # print(export_dict)
 
         return export_dict
-
-
 
     def import_json_data(self, json_str: str):
         """
@@ -1663,7 +1605,7 @@ class NeoInterface:
         """
 
         try:
-            json_list = json.loads(json_str)    # Turn the string (representing a JSON list) into a list
+            json_list = json.loads(json_str)  # Turn the string (representing a JSON list) into a list
         except Exception as ex:
             raise Exception(f"Incorrectly-formatted JSON string. {ex}")
 
@@ -1672,31 +1614,37 @@ class NeoInterface:
 
         assert type(json_list) == list, "The JSON string does not represent the expected list"
 
-        id_shifting = {}    # To map the Neo4j internal ID's specified in the JSON data dump
-                            #       into the ID's of newly-created nodes
+        id_shifting = {}  # To map the Neo4j internal ID's specified in the JSON data dump
+        #       into the ID's of newly-created nodes
 
         # Do an initial pass for correctness, to try to avoid partial imports
         for i, item in enumerate(json_list):
             # We use item.get(key_name) to handle without error situation where the key is missing
             if (item.get("type") != "node") and (item.get("type") != "relationship"):
-                raise Exception(f"Item in list index {i} must have a 'type' of either 'node' or 'relationship'.  Nothing imported.  Item: {item}")
+                raise Exception(
+                    f"Item in list index {i} must have a 'type' of either 'node' or 'relationship'.  Nothing imported.  Item: {item}")
 
             if item["type"] == "node":
                 if "id" not in item:
-                    raise Exception(f"Item in list index {i} is marked as 'node' but it lacks an 'id'.  Nothing imported.  Item: {item}")
+                    raise Exception(
+                        f"Item in list index {i} is marked as 'node' but it lacks an 'id'.  Nothing imported.  Item: {item}")
 
             elif item["type"] == "relationship":
                 if "label" not in item:
-                    raise Exception(f"Item in list index {i} is marked as 'relationship' but lacks a 'label'.  Nothing imported.  Item: {item}")
+                    raise Exception(
+                        f"Item in list index {i} is marked as 'relationship' but lacks a 'label'.  Nothing imported.  Item: {item}")
                 if "start" not in item:
-                    raise Exception(f"Item in list index {i} is marked as 'relationship' but lacks a 'start' value.  Nothing imported.  Item: {item}")
+                    raise Exception(
+                        f"Item in list index {i} is marked as 'relationship' but lacks a 'start' value.  Nothing imported.  Item: {item}")
                 if "end" not in item:
-                    raise Exception(f"Item in list index {i} is marked as 'relationship' but lacks a 'end' value.  Nothing imported.  Item: {item}")
+                    raise Exception(
+                        f"Item in list index {i} is marked as 'relationship' but lacks a 'end' value.  Nothing imported.  Item: {item}")
                 if "id" not in item["start"]:
-                    raise Exception(f"Item in list index {i} is marked as 'relationship' but its 'start' value lacks an 'id'.  Nothing imported.  Item: {item}")
+                    raise Exception(
+                        f"Item in list index {i} is marked as 'relationship' but its 'start' value lacks an 'id'.  Nothing imported.  Item: {item}")
                 if "id" not in item["end"]:
-                    raise Exception(f"Item in list index {i} is marked as 'relationship' but its 'end' value lacks an 'id'.  Nothing imported.  Item: {item}")
-
+                    raise Exception(
+                        f"Item in list index {i} is marked as 'relationship' but its 'end' value lacks an 'id'.  Nothing imported.  Item: {item}")
 
         # First, process all the nodes, and in the process create the id_shifting map
         num_nodes_imported = 0
@@ -1706,7 +1654,8 @@ class NeoInterface:
                     print("ADDING NODE: ", item)
                     print(f'     Creating node with label `{item["labels"][0]}` and properties {item["properties"]}')
                 old_id = int(item["id"])
-                new_id = self.create_node_by_label_and_dict(item["labels"][0], item["properties"])  # TODO: Only the 1st label is used for now
+                new_id = self.create_node_by_label_and_dict(item["labels"][0], item[
+                    "properties"])  # TODO: Only the 1st label is used for now
                 id_shifting[old_id] = new_id
                 num_nodes_imported += 1
 
@@ -1721,22 +1670,20 @@ class NeoInterface:
                     print("ADDING RELATIONSHIP: ", item)
 
                 rel_name = item["label"]
-                #rel_props = item["properties"]
-                rel_props = item.get("properties")      # Also works if no "properties" is present (relationships may lack it)
+                rel_props = item.get(
+                    "properties")  # Also works if no "properties" is present (relationships may lack it)
 
                 start_id_original = int(item["start"]["id"])
                 end_id_original = int(item["end"]["id"])
 
                 start_id_shifted = id_shifting[start_id_original]
                 end_id_shifted = id_shifting[end_id_original]
-                #print(f'     Creating relationship named `{rel_name}` from node {start_id_shifted} to node {end_id_shifted},  with properties {rel_props}')
+                # print(f'     Creating relationship named `{rel_name}` from node {start_id_shifted} to node {end_id_shifted},  with properties {rel_props}')
 
                 self.link_nodes_by_ids(start_id_shifted, end_id_shifted, rel_name, rel_props)
                 num_rels_imported += 1
 
-
         return f"Successful import of {num_nodes_imported} node(s) and {num_rels_imported} relationship(s)"
-
 
     ############################################################################################
     #                                                                                          #
@@ -1750,7 +1697,7 @@ class NeoInterface:
                          prefix='neo4j://graph.schema#',
                          add_prefixes=[],
                          sep='/',
-                         uri_prop = 'uri') -> None:
+                         uri_prop='uri') -> None:
         """
         A method that
             - on the neo4j nodes with labels equal to keys of :dict dictionary
@@ -1778,7 +1725,10 @@ class NeoInterface:
                 dct = {
                 "Vehicle": {"properties": "producer"},
                 "Model": {"properties": ["name"],
-                           "neighbour": ["Vehicle","HAS_MODEL","producer"]}
+                           "neighbours": [
+                            {"label": "Vehicle", "relationship": "HAS_MODEL", "property": producer"}
+                           ]
+                         }
                 }
                 set URI on 'Vehicle' nodes using node's property "producer"
                     uri = 'neo4j://graph.schema#Vehicle/Toyota'
@@ -1793,9 +1743,8 @@ class NeoInterface:
             assert isinstance(label, str)
             assert any(isinstance(config, t) for t in [list, str, dict])
             where = ""
-            neighbour = False
-            neighbour_query = ""
-            neighbour_ext = ["", "", ""]
+            neighbours = False
+            neighbours_query = ""
             if isinstance(config, str):
                 properties_ext = [config]
             elif isinstance(config, list):
@@ -1806,22 +1755,35 @@ class NeoInterface:
                         properties_ext = [config['properties']]
                     elif isinstance(config['properties'], list):
                         properties_ext = config['properties']
-                if 'neighbour' in config.keys():
-                    assert isinstance(config['neighbour'], list), f"neighbour should be of type LIST (['label,'rel_type','prop'']) not {type(config['neighbour'])}"
-                    assert len(config['neighbour']) == 3, f"Expected 3 elements ([label,rel,prop]), received {len(config['neighbour'])}"
-                    neighbour = True
-                    neighbour_ext = config['neighbour']
-                    neighbour_query = """
-                                        CALL apoc.path.expand(x, $neighbour_rel, $neighbour_label, 1, 1)
+                if 'neighbours' in config.keys():
+                    assert isinstance(config['neighbours'], list), \
+                        f"neighbours should be of type LIST [{{}}[, {{}}]] not {type(config['neighbours'])}"
+                    for i, neighbour in enumerate(config['neighbours']):
+                        if isinstance(neighbour, list): #if a list converting it to a dict as per req.
+                            assert len(neighbour) == 3, \
+                                f"each neighbour should be of length 3: [<label>, <relationship>, <property>] got: {neighbour}"
+                            neighbour = {'label': neighbour[0], 'relationship': neighbour[1], 'property': neighbour[2]}
+                            config['neighbours'][i] = neighbour
+                        assert isinstance(neighbour, dict), \
+                            f"each neighbour should be of type DICT not {type(neighbour)}"
+                        for key in ['label', 'relationship', 'property']:
+                            assert key in neighbour.keys(), f"{key} not found in {neighbour}"
+                    neighbours = True
+                    neighbours_query = """
+                                        WITH *
+                                        UNWIND apoc.coll.zip(range(0,size($neighbours)-1), $neighbours) as pair
+                                        WITH *, pair[0] as ind, pair[1] as neighbour
+                                        CALL apoc.path.expand(x, neighbour['relationship'], neighbour['label'], 1, 1)
                                         YIELD path
-                                        WITH x,nodes(path) as neighbours
-                                        UNWIND neighbours as nbr
-                                        WITH DISTINCT nbr, x
+                                        WITH x, ind, nodes(path) as ind_neighbours
+                                        UNWIND ind_neighbours as nbr
+                                        WITH DISTINCT x, ind, nbr
                                         WHERE x<>nbr 
                                         WITH * 
-                                        ORDER BY id(nbr) 
-                                        WITH x, collect(nbr) as coll 
-                                        WITH x, apoc.map.mergeList(coll) as nbr"""
+                                        ORDER BY x, ind, id(nbr) 
+                                        WITH x, ind, collect(nbr) as coll 
+                                        WITH x, ind, apoc.map.mergeList(coll) as nbr
+                                        WITH x, collect({index: ind, map: nbr}) as nbrs"""
                 if 'where' in config.keys():
                     where = config['where']
             else:
@@ -1830,12 +1792,14 @@ class NeoInterface:
             cypher = f"""
             MATCH (x:`{label}`)
             {where}
-            {neighbour_query}
+            {neighbours_query}
             SET x:Resource            
             SET
             x.
             `{uri_prop}` = apoc.text.regreplace(
-                $prefix + apoc.text.join($add_prefixes + $opt_label + {"nbr[$neighbour_prop] +" if neighbour else ""} [prop in $properties | x[prop]], $sep)
+                $prefix + apoc.text.join($add_prefixes + $opt_label + 
+{"[nbr in nbrs | nbr['map'][$neighbours[nbr['index']]['property']]] +" if neighbours else ""} 
+[prop in $properties | x[prop]], $sep)
             ,
                 '\\s'
             ,
@@ -1849,12 +1813,10 @@ class NeoInterface:
                 'opt_label': ([label] if include_label_in_uri else []),
                 'properties': properties_ext
             }
-            if neighbour:
+            if neighbours:
                 cypher_dict.update({
-                    'neighbour_label': neighbour_ext[0],
-                    'neighbour_rel': neighbour_ext[1],
-                    'neighbour_prop': neighbour_ext[2],
-                    })
+                    'neighbours': config['neighbours']
+                })
 
             if self.debug:
                 print(f"""
@@ -1863,8 +1825,7 @@ class NeoInterface:
                 """)
             self.query(cypher, cypher_dict)
 
-
-    def rdf_get_subgraph(self, cypher:str, cypher_dict={}, format="Turtle-star") -> str:
+    def rdf_get_subgraph(self, cypher: str, cypher_dict={}, format="Turtle-star") -> str:
         """
         A method that returns an RDF serialization of a subgraph specified by :cypher query
         :param cypher: cypher query to return a subgraph
@@ -1882,7 +1843,6 @@ class NeoInterface:
         # see https://community.neo4j.com/t/export-procedure-that-returns-serialized-rdf/38781/2
         return response.text
 
-
     def rdf_import_fetch(self, url: str, format="Turtle-star"):
         cypher = "CALL n10s.rdf.import.fetch ($url, $format) YIELD terminationStatus, triplesLoaded, triplesParsed, " \
                  "namespaces, extraInfo, callParams"
@@ -1894,8 +1854,7 @@ class NeoInterface:
                 """)
         return self.query(cypher, cypher_dict)
 
-
-    def rdf_import_subgraph_inline(self, rdf:str, format="Turtle-star"):
+    def rdf_import_subgraph_inline(self, rdf: str, format="Turtle-star"):
         """
         A method that creates/merges appropriate nodes in Neo4j as specified in the provided :rdf string
         The nodes will be MERGEd by 'uri' property
@@ -1919,11 +1878,10 @@ class NeoInterface:
             """)
         res = self.query(cypher, cypher_dict)
         self._rdf_import_subgraph_cleanup()
-        if len(res)>0:
+        if len(res) > 0:
             return res[0]
         else:
             return {'triplesParsed': 0, 'triplesLoaded': 0, 'extraInfo': ''}
-
 
     def _rdf_import_subgraph_cleanup(self):
         # in case labels with spaces where serialized new labels with spaces being replaced with %20 could have been created
@@ -1964,7 +1922,6 @@ class NeoInterface:
             parameters: {cypher_dict2}
             """)
         self.query(cypher2, cypher_dict2)
-
 
     def rdf_get_graph_onto(self):
         """

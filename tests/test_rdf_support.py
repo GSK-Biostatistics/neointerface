@@ -54,8 +54,7 @@ def test_rdf_generate_uri_where(db):
                        {'x.uri': 'neo4j://graph.schema#Car/toyota/petrol'}]
     assert result == expected_result
 
-
-def test_rdf_generate_uri_from_neighbours_dct(db):
+def test_rdf_generate_uri_from_neighbours_dct0(db):
     db.clean_slate()
     db.query("""CREATE (v:Vehicle{producer: 'Toyota'}),
     (m:Model{name: 'Prius'}),
@@ -64,10 +63,47 @@ def test_rdf_generate_uri_from_neighbours_dct(db):
     db.rdf_generate_uri({
         "Vehicle": {"properties": "producer"},
         "Model": {"properties": ["name"],
-                  "neighbour": ["Vehicle", "HAS_MODEL", "producer"]}
+                  "neighbours": [["Vehicle", "HAS_MODEL", "producer"]]}
     })
     result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri order by labels(x)")
     expected_result = [{'x.uri': 'neo4j://graph.schema#Model/Toyota/Prius'},
+                       {'x.uri': 'neo4j://graph.schema#Vehicle/Toyota'}]
+    assert result == expected_result
+
+def test_rdf_generate_uri_from_neighbours_dct1(db):
+    db.clean_slate()
+    db.query("""CREATE (v:Vehicle{producer: 'Toyota'}),
+    (m:Model{name: 'Prius'}),
+    (v)-[:HAS_MODEL]->(m)
+    """)
+    db.rdf_generate_uri({
+        "Vehicle": {"properties": "producer"},
+        "Model": {"properties": ["name"],
+                  "neighbours": [{"label": "Vehicle", "relationship": "HAS_MODEL", "property": "producer"}]}
+    })
+    result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri order by labels(x)")
+    expected_result = [{'x.uri': 'neo4j://graph.schema#Model/Toyota/Prius'},
+                       {'x.uri': 'neo4j://graph.schema#Vehicle/Toyota'}]
+    assert result == expected_result
+
+def test_rdf_generate_uri_from_neighbours_dct2(db):
+    db.clean_slate()
+    db.query("""CREATE (v:Vehicle{producer: 'Toyota'}),
+    (m:Model{name: 'Prius'}),
+    (i:Invention{year:'1997'}),
+    (v)-[:HAS_MODEL]->(m),
+    (m)-[:APPEARED]->(i)
+    """)
+    db.rdf_generate_uri({
+        "Vehicle": {"properties": "producer"},
+        "Model": {"properties": ["name"], #Prius
+                  "neighbours": [
+                      {"label": "Vehicle", "relationship": "HAS_MODEL", "property": "producer"}, #Toyota
+                      {"label": "Invention", "relationship": "APPEARED", "property": "year"}, #1997
+                  ]}
+    })
+    result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri order by labels(x)")
+    expected_result = [{'x.uri': 'neo4j://graph.schema#Model/Toyota/1997/Prius'},
                        {'x.uri': 'neo4j://graph.schema#Vehicle/Toyota'}]
     assert result == expected_result
 
