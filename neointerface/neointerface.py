@@ -1356,7 +1356,7 @@ class NeoInterface:
                 """, {"rel_prefix": rel_prefix})
             i += 1
 
-    def load_arrows_dict(self, dct: dict, merge_on=None):
+    def load_arrows_dict(self, dct: dict, merge_on=None, always_create=None):
         """
         Loads data created in prototyping tool https://arrows.app/
         Uses MERGE statement separately on each node and each relationship using all properties as identifying properties
@@ -1372,6 +1372,7 @@ class NeoInterface:
         :return: result of the corresponding Neo4j query
         """
         assert merge_on is None or isinstance(merge_on, dict)
+        assert always_create is None or isinstance(always_create, list)
         # if merge_on:
         q = """
             UNWIND $map['nodes'] as nd
@@ -1417,7 +1418,13 @@ class NeoInterface:
                 props['onMatchProps'] as onCreateProps //TODO: change if these need to differ in the future
             //dummy property if no properties are ident                                          
             WITH *, CASE WHEN identProps = {} THEN {_dummy_prop_:1} ELSE identProps END as identProps 
-            CALL apoc.merge.node(labels, identProps, onMatchProps, onCreateProps) YIELD node
+            CALL apoc.do.when(
+                size(apoc.coll.intersection(labels, $always_create)) > 0,    
+                "CALL apoc.create.node($labels, apoc.map.mergeList([$identProps, $onMatchProps, $onCreateProps])) YIELD node RETURN node",
+                "CALL apoc.merge.node($labels, $identProps, $onMatchProps, $onCreateProps) YIELD node RETURN node",
+                {labels: labels, identProps:identProps, onMatchProps:onMatchProps, onCreateProps:onCreateProps}
+            ) yield value as value2
+            WITH *, value2['node'] as node
             //eliminating dummy property
             CALL apoc.do.when( 
                 identProps = {_dummy_prop_: 1},
@@ -1427,7 +1434,7 @@ class NeoInterface:
             ) YIELD value
             WITH * 
             WITH apoc.map.fromPairs(collect([nd['id'], node])) as node_map
-            UNWIND $map['relationships'] as rel
+            UNWIND $map['relationships'] as rel                   
             call apoc.merge.relationship(
                 node_map[rel['fromId']], 
                 CASE WHEN rel['type'] = '' OR rel['type'] IS NULL THEN 'RELATED' ELSE rel['type'] END, 
@@ -1439,7 +1446,11 @@ class NeoInterface:
             WITH node_map, apoc.map.fromPairs(collect([rel['id'], relationship])) as rel_map
             RETURN node_map, rel_map
             """
-        params = {'map': dct, 'merge_on': (merge_on if merge_on else {})}
+        params = {
+            'map': dct,
+            'merge_on': (merge_on if merge_on else {}),
+            'always_create': (always_create if always_create else [])
+        }
         res = self.query(q, params)
         if res:
             return res[0]
@@ -1863,7 +1874,8 @@ class NeoInterface:
         :return: returns a dictionary with keys triplesParsed, triplesLoaded as a summary of the operation
         """
         assert self.rdf, "rdf option is not enabled at init of NeoInterface class"
-        self.rdf_setup_connection()
+        if not self.autoconnect:
+            self.rdf_setup_connection()
         cypher = """
         CALL n10s.rdf.import.inline($rdf, $format) 
         YIELD triplesParsed, triplesLoaded, extraInfo 
