@@ -797,7 +797,8 @@ class NeoInterface:
         """
         constraints = self.get_constraints()
         for name in constraints['name']:
-            self.drop_constraint(name)
+            if not (self.rdf and name == 'n10s_unique_uri'):
+                self.drop_constraint(name)
 
     #####################################################################################
     #                                                                                   #
