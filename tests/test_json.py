@@ -267,3 +267,14 @@ def test_load_arrows_dict_caption(db):
     res = db.query("MATCH path = (:`No Label`{value: 'Peter'})-[:RELATED]->(:`No Label`{value: 'GSK'}) RETURN path")
     # print(res)
     assert res == [{'path': [{'value': 'Peter'}, 'RELATED', {'value': 'GSK'}]}]
+
+    db.clean_slate()
+    db.load_arrows_dict(dct, timestamp=True)
+    res = db.query("MATCH path = (:`No Label`{value: 'Peter'})-[:RELATED]->(:`No Label`{value: 'GSK'}) RETURN path")
+    # print(res)
+    assert len(res) == 1
+    assert 'path' in res[0].keys()
+    assert res[0]['path']
+    for x in res[0]['path']:
+        if isinstance(x, dict):
+            '_timestamp' in x.keys()

@@ -1357,7 +1357,7 @@ class NeoInterface:
                 """, {"rel_prefix": rel_prefix})
             i += 1
 
-    def load_arrows_dict(self, dct: dict, merge_on=None, always_create=None):
+    def load_arrows_dict(self, dct: dict, merge_on=None, always_create=None, timestamp=False):
         """
         Loads data created in prototyping tool https://arrows.app/
         Uses MERGE statement separately on each node and each relationship using all properties as identifying properties
@@ -1373,6 +1373,10 @@ class NeoInterface:
         :return: result of the corresponding Neo4j query
         """
         assert merge_on is None or isinstance(merge_on, dict)
+        if not merge_on:
+            merge_on = {}
+        for key, item in merge_on.items():
+            assert isinstance(item, list)
         assert always_create is None or isinstance(always_create, list)
         # if merge_on:
         q = """
@@ -1419,6 +1423,14 @@ class NeoInterface:
                 props['onMatchProps'] as onCreateProps //TODO: change if these need to differ in the future
             //dummy property if no properties are ident                                          
             WITH *, CASE WHEN identProps = {} THEN {_dummy_prop_:1} ELSE identProps END as identProps 
+        """ + \
+        ("""
+        WITH 
+            *, 
+            apoc.map.mergeList([onCreateProps, {_timestamp: timestamp()}]) as onCreateProps,
+            apoc.map.mergeList([onMatchProps, {_timestamp: timestamp()}]) as onMatchProps
+        """ if timestamp else "") + \
+        """
             CALL apoc.do.when(
                 size(apoc.coll.intersection(labels, $always_create)) > 0,    
                 "CALL apoc.create.node($labels, apoc.map.mergeList([$identProps, $onMatchProps, $onCreateProps])) YIELD node RETURN node",
