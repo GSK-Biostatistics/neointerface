@@ -9,6 +9,7 @@ import pandas as pd
 @pytest.fixture(scope="module")
 def db():
     neo_obj = neointerface.NeoInterface(verbose=False)
+    neo_obj.clean_slate()
     yield neo_obj
 
 

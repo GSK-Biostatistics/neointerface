@@ -248,6 +248,16 @@ def test_load_arrows_dict_merge_on(db):
     res5 = db.query("MATCH (e:Empty) RETURN e")
     assert len(res5) == 1
 
+    # with always_create:
+    db.clean_slate()
+    db.query("CREATE (:Person{name:'Adam'})")
+    db.query("CREATE (:Person{name:'Peter'})")
+    db.load_arrows_dict(dct, merge_on={'Person': ['name', 'non-existing-property']}, always_create=['Person'])
+    res4 = db.query("MATCH (p:Person) RETURN p")
+    assert len(res4) == 3
+    res5 = db.query("MATCH (e:Empty) RETURN e")
+    assert len(res5) == 1
+
 
 def test_load_arrows_dict_caption(db):
     db.clean_slate()
