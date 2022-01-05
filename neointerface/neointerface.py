@@ -1231,8 +1231,15 @@ class NeoInterface:
     #                                                                                                   #
     #####################################################################################################
 
-    def load_df(self, df: pd.DataFrame, label: str, merge=False, primary_key=None, rename=None,
-                max_chunk_size=10000) -> list:
+    def load_df(
+            self,
+            df: pd.DataFrame,
+            label: str,
+            merge=False,
+            primary_key=None,
+            merge_overwrite=False,
+            rename=None,
+            max_chunk_size=10000) -> list:
         """
         Load a Pandas data frame into Neo4j.
         Each line is loaded as a separate node.
@@ -1246,6 +1253,9 @@ class NeoInterface:
                                 serves as a primary key; if a new record with that field is to be added,
                                 it'll replace the current one
         TODO: to allow for list of primary_keys
+        :param merge_overwrite: If True then on merge the existing nodes will be overwritten with the new data,
+                                otherwise they will be updated with new information (keys that are not present in the df
+                                will not be deleted)
         :param rename:          Optional dictionary to rename the Pandas dataframe's columns to
                                     EXAMPLE {"current_name": "name_we_want"}
         :param max_chunk_size:  To limit the number of rows loaded at one time
@@ -1270,7 +1280,7 @@ class NeoInterface:
             cypher = f'''
             WITH $data AS data 
             UNWIND data AS record {op} (x:`{label}`{primary_key_s}) 
-            SET x=record 
+            SET x{('' if merge_overwrite else '+')}=record 
             RETURN id(x) as node_id 
             '''
             cypher_dict = {'data': df_chunk.to_dict(orient='records')}
@@ -1357,7 +1367,7 @@ class NeoInterface:
                 """, {"rel_prefix": rel_prefix})
             i += 1
 
-    def load_arrows_dict(self, dct: dict, merge_on=None, always_create=None):
+    def load_arrows_dict(self, dct: dict, merge_on=None, always_create=None, timestamp=False):
         """
         Loads data created in prototyping tool https://arrows.app/
         Uses MERGE statement separately on each node and each relationship using all properties as identifying properties
@@ -1373,6 +1383,10 @@ class NeoInterface:
         :return: result of the corresponding Neo4j query
         """
         assert merge_on is None or isinstance(merge_on, dict)
+        if not merge_on:
+            merge_on = {}
+        for key, item in merge_on.items():
+            assert isinstance(item, list)
         assert always_create is None or isinstance(always_create, list)
         # if merge_on:
         q = """
@@ -1419,6 +1433,14 @@ class NeoInterface:
                 props['onMatchProps'] as onCreateProps //TODO: change if these need to differ in the future
             //dummy property if no properties are ident                                          
             WITH *, CASE WHEN identProps = {} THEN {_dummy_prop_:1} ELSE identProps END as identProps 
+        """ + \
+        ("""
+        WITH 
+            *, 
+            apoc.map.mergeList([onCreateProps, {_timestamp: timestamp()}]) as onCreateProps,
+            apoc.map.mergeList([onMatchProps, {_timestamp: timestamp()}]) as onMatchProps
+        """ if timestamp else "") + \
+        """
             CALL apoc.do.when(
                 size(apoc.coll.intersection(labels, $always_create)) > 0,    
                 "CALL apoc.create.node($labels, apoc.map.mergeList([$identProps, $onMatchProps, $onCreateProps])) YIELD node RETURN node",

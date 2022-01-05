@@ -1052,6 +1052,23 @@ def test_load_df_return_node_ids(db):
     assert len(res) == len(df)
     assert res[0] == res[-1]
 
+def test_load_df_merge_overwrite(db):
+    db.clean_slate()
+    #prep data
+    df_original = pd.DataFrame({"patient_id": [1, 2], "name": ["Jack", "Jill"], "age": [25, 26]})
+    db.load_df(df_original, "A")
+
+    #run load_df with merge_overwrite = False
+    df_new = pd.DataFrame({"patient_id": [1, 2], "name": ["Jack", "Jill"]})
+    db.load_df(df_new, "A", merge=True, primary_key="patient_id", merge_overwrite=False)
+
+    assert len(db.query("MATCH (a:A) WHERE a.age IS NULL RETURN a")) == 0
+
+    # run load_df with merge_overwrite = False
+    db.load_df(df_new, "A", merge=True, primary_key="patient_id", merge_overwrite=True)
+
+    assert len(db.query("MATCH (a:A) WHERE a.age IS NULL RETURN a")) == 2
+
 def test_get_df(db):
     db.clean_slate()
 
