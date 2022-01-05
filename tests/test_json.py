@@ -277,4 +277,4 @@ def test_load_arrows_dict_caption(db):
     assert res[0]['path']
     for x in res[0]['path']:
         if isinstance(x, dict):
-            '_timestamp' in x.keys()
+            assert '_timestamp' in x.keys()
