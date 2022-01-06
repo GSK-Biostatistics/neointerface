@@ -1272,7 +1272,7 @@ class NeoInterface:
             neo_indexes = self.get_indexes()
             if f"{label}.{primary_key}" not in list(neo_indexes['name']):
                 self.create_index(label, primary_key)
-                time.sleep(1) #sleep to give time Neo4j to populate the index
+                time.sleep(1)  # sleep to give Neo4j time to populate the index
             primary_key_s = '{' + f'`{primary_key}`:record[\'{primary_key}\']' + '}'
             # EXAMPLE of primary_key_s: "{patient_id:record['patient_id']}"
 
