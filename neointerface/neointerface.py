@@ -8,6 +8,7 @@ import os
 import requests
 import re
 import json
+import time
 from urllib.parse import quote
 
 
@@ -1269,8 +1270,9 @@ class NeoInterface:
         primary_key_s = ''
         if primary_key is not None:
             neo_indexes = self.get_indexes()
-            if label not in list(neo_indexes['name']):
+            if f"{label}.{primary_key}" not in list(neo_indexes['name']):
                 self.create_index(label, primary_key)
+                time.sleep(1)  # sleep to give Neo4j time to populate the index
             primary_key_s = '{' + f'`{primary_key}`:record[\'{primary_key}\']' + '}'
             # EXAMPLE of primary_key_s: "{patient_id:record['patient_id']}"
 
