@@ -1856,6 +1856,7 @@ class NeoInterface:
                 parameters: {cypher_dict}
                 """)
             self.query(cypher, cypher_dict)
+            self._rdf_uri_cleanup()
 
     def rdf_get_subgraph(self, cypher: str, cypher_dict={}, format="Turtle-star") -> str:
         """
@@ -1865,6 +1866,7 @@ class NeoInterface:
         :param format: RDF format in which to serialize output
         :return: str - RDF serialization of subgraph
         """
+        self._rdf_subgraph_cleanup()
         url = self.rdf_host + "neo4j/cypher"
         j = ({'cypher': cypher, 'format': format, 'cypherParams': cypher_dict})
         response = requests.post(
@@ -1910,13 +1912,13 @@ class NeoInterface:
             parameters: {cypher_dict}
             """)
         res = self.query(cypher, cypher_dict)
-        self._rdf_import_subgraph_cleanup()
+        self._rdf_subgraph_cleanup()
         if len(res) > 0:
             return res[0]
         else:
             return {'triplesParsed': 0, 'triplesLoaded': 0, 'extraInfo': ''}
 
-    def _rdf_import_subgraph_cleanup(self):
+    def _rdf_subgraph_cleanup(self):
         # in case labels with spaces where serialized new labels with spaces being replaced with %20 could have been created
         # this helper function is supposed to revert the change
         cypher = """
@@ -1956,7 +1958,10 @@ class NeoInterface:
             """)
         self.query(cypher2, cypher_dict2)
 
-        # URIs - replace selected encoded values with their original characters
+        self._rdf_uri_cleanup()
+
+    def _rdf_uri_cleanup(self):
+        # URIs - replace selected encoded values with their original characters (for readability)
         cypher3 = """
         MATCH (n)
         WHERE n.uri is not null
