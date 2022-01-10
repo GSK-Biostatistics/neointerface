@@ -1832,15 +1832,11 @@ class NeoInterface:
             SET x:Resource            
             SET
             x.
-            `{uri_prop}` = apoc.text.regreplace(
+            `{uri_prop}` = apoc.text.urlencode(
                 $prefix + apoc.text.join($add_prefixes + $opt_label + 
 {"[nbr in nbrs | nbr['map'][$neighbours[nbr['index']]['property']]] +" if neighbours else ""} 
 [prop in $properties | x[prop]], $sep)
-            ,
-                '\\s'
-            ,
-                '%20'
-            )  // for the sake of uri spaces are replaced with %20             
+            )             
             """
             cypher_dict = {
                 'prefix': prefix,
@@ -1959,6 +1955,22 @@ class NeoInterface:
             parameters: {cypher_dict2}
             """)
         self.query(cypher2, cypher_dict2)
+
+        # URIs - replace selected encoded values with their original characters
+        cypher3 = """
+        MATCH (n)
+        WHERE n.uri is not null
+        SET n.uri = apoc.text.replace(n.uri, '%23', '#')
+        SET n.uri = apoc.text.replace(n.uri, '%2F', '/')
+        SET n.uri = apoc.text.replace(n.uri, '%3A', ':')
+        """
+        cypher_dict3 = {}
+        if self.debug:
+            print(f"""
+            query: {cypher3}
+            parameters: {cypher_dict3}
+            """)
+        self.query(cypher3, cypher_dict3)
 
     def rdf_get_graph_onto(self):
         """
