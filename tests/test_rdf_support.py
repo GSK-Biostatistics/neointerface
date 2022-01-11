@@ -18,8 +18,10 @@ def test_rdf_generate_uri(db):
         'Car': ['model', 'fuel']
     })
     result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri order by labels(x)")
-    expected_result = [{'x.uri': 'neo4j://graph.schema#Any%20Vehicle/car/toyota'},
+    expected_result = [{'x.uri': 'neo4j://graph.schema#Any+Vehicle/car/toyota'},
                        {'x.uri': 'neo4j://graph.schema#Car/toyota/petrol'}]
+    # print(result)
+    # print(expected_result)
     assert result == expected_result
 
 
@@ -32,7 +34,7 @@ def test_rdf_generate_uri_dct(db):
         'Car': {'properties': ['model', 'fuel']}
     })
     result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri order by labels(x)")
-    expected_result = [{'x.uri': 'neo4j://graph.schema#Any%20Vehicle/car/toyota'},
+    expected_result = [{'x.uri': 'neo4j://graph.schema#Any+Vehicle/car/toyota'},
                        {'x.uri': 'neo4j://graph.schema#Car/toyota/petrol'}]
     assert result == expected_result
 
@@ -50,7 +52,7 @@ def test_rdf_generate_uri_where(db):
         'Car': {'properties': ['model', 'fuel']}
     })
     result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri order by labels(x)")
-    expected_result = [{'x.uri': 'neo4j://graph.schema#Any%20Vehicle/car/suzuki'},
+    expected_result = [{'x.uri': 'neo4j://graph.schema#Any+Vehicle/car/suzuki'},
                        {'x.uri': 'neo4j://graph.schema#Car/toyota/petrol'}]
     assert result == expected_result
 
@@ -152,7 +154,7 @@ def test_get_graph_onto(db):
 
 
 def test_rdf_import_fetch(db):
-    result = db.rdf_import_fetch('https://raw.githubusercontent.com/phuse-org/rdf.cdisc.org/master/std/sdtm-1-3.ttl',
+    result = db.rdf_import_fetch('https://www.w3.org/2006/time',
                                  'Turtle')
     assert len(result) > 0
     assert result[0]['triplesParsed'] > 0
@@ -170,7 +172,7 @@ def test_rdf_star_import_export_spaces(db):
         'Car': ['v model', 'fuel']
     })
     ttl = db.rdf_get_subgraph("MATCH p=(c)-[*0..1]->() RETURN p")
-    print(ttl)
+    # print(ttl)
     db.clean_slate()
     db.rdf_import_subgraph_inline(ttl)
     result = db.query("""
