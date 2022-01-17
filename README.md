@@ -676,7 +676,7 @@ name | arguments| return
         :param direction: direction of the relationship to create (>: to the extraction node, <: from the extraction node)
         :return: None
         
-![extract_entities](docs/extract_entities.png)
+![extract_entities](docs/extract_entities.png)  
 The part in green would be created as the result of operation in the "Example use".        
 ---
 
@@ -708,7 +708,7 @@ name | arguments| return
         :param cond_cypher_dict: parameters required for the cypher query
         :return: None
 
-![link_entities](docs/link_entities.png)
+![link_entities](docs/link_entities.png)  
 SAME_COLOR relationships in green would be created as the result of operation in "Example use" 
 ---
 
