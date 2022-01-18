@@ -642,7 +642,7 @@ name | arguments| return
 ## extract_entities()
 name | arguments| return
 -----| ---------| -------
-*link_entities*| mode='merge', label=None, cypher=None, cypher_dict=None, target_label=None, property_mapping={}, relationship=None, direction=None| None
+*extract_entities*| mode='merge', label=None, cypher=None, cypher_dict=None, target_label=None, property_mapping={}, relationship=None, direction=None| None
                          
     Create new nodes using data from other nodes
         
@@ -675,6 +675,9 @@ name | arguments| return
         :param relationship: type of the relationship (to/from the extraction node) to create
         :param direction: direction of the relationship to create (>: to the extraction node, <: from the extraction node)
         :return: None
+        
+![extract_entities](docs/extract_entities.png)  
+The part in green would be created as the result of operation in the "Example use".        
 ---
 
 
@@ -686,7 +689,13 @@ name | arguments| return
 *link_entities*| left_class:str, right_class:str, relationship="\_default_", cond_via_node=None, cond_left_rel=None, cond_right_rel=None, cond_cypher=None, cond_cypher_dict=None| None
 
     Creates relationship of type {relationship}
-
+    Example use:
+    db.link_entities(left_class='Thing', right_class='Thing',
+                cond_via_node="Color",
+                cond_left_rel="<OF",
+                cond_right_rel="OF>",
+                relationship="SAME_COLOR")
+                
         :param left_class:      Name of the left class 
         :param right_class:     Name of the right class
         :param relationship:    Name to give the relationship (if None: will use name of right_class (f'HAS_{right_class.upper())')
@@ -699,6 +708,8 @@ name | arguments| return
         :param cond_cypher_dict: parameters required for the cypher query
         :return: None
 
+![link_entities](docs/link_entities.png)  
+SAME_COLOR relationships in green would be created as the result of operation in "Example use" 
 ---
 
 ## link_nodes_on_matching_property()
