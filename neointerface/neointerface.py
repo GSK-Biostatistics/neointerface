@@ -1010,6 +1010,8 @@ class NeoInterface:
         if type(property_mapping) == list:
             property_mapping = {k: k for k in property_mapping}
         for key in property_mapping.keys():
+            for lbl in target_label:
+                self.create_index(lbl, key)
             self.create_index(label, key)
         q_match_part = f"MATCH (data:`{label}`) RETURN data"
         q_match_altered = False
