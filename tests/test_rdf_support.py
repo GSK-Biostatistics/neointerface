@@ -9,6 +9,21 @@ def db():
     yield neo_obj
 
 
+# Provide a function to compare two lists irregardless of order (where lists items are not hashable or sortable)
+def equal_ignore_order(a, b):
+    unmatched = list(b)
+    
+    if len(a) != len(b):
+        return False
+    
+    for element in a:
+        try:
+            unmatched.remove(element)
+        except ValueError:
+            return False
+    return not unmatched
+
+
 def test_rdf_generate_uri(db):
     db.clean_slate()
     db.create_node_by_label_and_dict("Any Vehicle", {'type': 'car', 'model': 'toyota'})
@@ -17,12 +32,10 @@ def test_rdf_generate_uri(db):
         'Any Vehicle': ['type', 'model'],
         'Car': ['model', 'fuel']
     })
-    result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri order by labels(x)")
+    result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri")
     expected_result = [{'x.uri': 'neo4j://graph.schema#Any+Vehicle/car/toyota'},
                        {'x.uri': 'neo4j://graph.schema#Car/toyota/petrol'}]
-    # print(result)
-    # print(expected_result)
-    assert result == expected_result
+    assert equal_ignore_order(result, expected_result)
 
 
 def test_rdf_generate_uri_dct(db):
@@ -33,10 +46,10 @@ def test_rdf_generate_uri_dct(db):
         'Any Vehicle': {'properties': ['type', 'model']},
         'Car': {'properties': ['model', 'fuel']}
     })
-    result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri order by labels(x)")
+    result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri")
     expected_result = [{'x.uri': 'neo4j://graph.schema#Any+Vehicle/car/toyota'},
                        {'x.uri': 'neo4j://graph.schema#Car/toyota/petrol'}]
-    assert result == expected_result
+    assert equal_ignore_order(result, expected_result)
 
 
 def test_rdf_generate_uri_where(db):
@@ -51,10 +64,10 @@ def test_rdf_generate_uri_where(db):
         },
         'Car': {'properties': ['model', 'fuel']}
     })
-    result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri order by labels(x)")
+    result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri")
     expected_result = [{'x.uri': 'neo4j://graph.schema#Any+Vehicle/car/suzuki'},
                        {'x.uri': 'neo4j://graph.schema#Car/toyota/petrol'}]
-    assert result == expected_result
+    assert equal_ignore_order(result, expected_result)
 
 def test_rdf_generate_uri_from_neighbours_dct0(db):
     db.clean_slate()
@@ -67,10 +80,10 @@ def test_rdf_generate_uri_from_neighbours_dct0(db):
         "Model": {"properties": ["name"],
                   "neighbours": [["Vehicle", "HAS_MODEL", "producer"]]}
     })
-    result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri order by labels(x)")
+    result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri")
     expected_result = [{'x.uri': 'neo4j://graph.schema#Model/Toyota/Prius'},
                        {'x.uri': 'neo4j://graph.schema#Vehicle/Toyota'}]
-    assert result == expected_result
+    assert equal_ignore_order(result, expected_result)
 
 def test_rdf_generate_uri_from_neighbours_dct1(db):
     db.clean_slate()
@@ -83,10 +96,10 @@ def test_rdf_generate_uri_from_neighbours_dct1(db):
         "Model": {"properties": ["name"],
                   "neighbours": [{"label": "Vehicle", "relationship": "HAS_MODEL", "property": "producer"}]}
     })
-    result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri order by labels(x)")
+    result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri")
     expected_result = [{'x.uri': 'neo4j://graph.schema#Model/Toyota/Prius'},
                        {'x.uri': 'neo4j://graph.schema#Vehicle/Toyota'}]
-    assert result == expected_result
+    assert equal_ignore_order(result, expected_result)
 
 def test_rdf_generate_uri_from_neighbours_dct2(db):
     db.clean_slate()
@@ -104,10 +117,10 @@ def test_rdf_generate_uri_from_neighbours_dct2(db):
                       {"label": "Invention", "relationship": "APPEARED", "property": "year"}, #1997
                   ]}
     })
-    result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri order by labels(x)")
+    result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri")
     expected_result = [{'x.uri': 'neo4j://graph.schema#Model/Toyota/1997/Prius'},
                        {'x.uri': 'neo4j://graph.schema#Vehicle/Toyota'}]
-    assert result == expected_result
+    assert equal_ignore_order(result, expected_result)
 
 
 def test_rdf_get_subgraph(db):
@@ -146,7 +159,7 @@ def test_rdf_import_subgraph_inline(db):
     result = db.query("MATCH (c:Class)-[:CLASS_RELATES_TO]->(c2:Class) return c.label, c.uri, c2.label, c2.uri")
     expected_result = [{'c.label': 'Subject', 'c.uri': 'neo4j://graph.schema#Subject',
                         'c2.label': 'Sex', 'c2.uri': 'neo4j://graph.schema#Sex'}]
-    assert result == expected_result
+    assert equal_ignore_order(result, expected_result)
 
 
 def test_get_graph_onto(db):
