@@ -10,6 +10,10 @@ import re
 import json
 import time
 from urllib.parse import quote
+from typing import Union
+from warnings import warn
+from utils.utils import graph_from_cypher
+from networkx import MultiDiGraph
 
 
 class NeoInterface:
@@ -138,18 +142,22 @@ class NeoInterface:
     #                                                                                          #
     ############################################################################################
 
-    def query(self, q: str, params=None) -> []:
+    def query(self, q: str, params=None, return_type: str = 'data') -> Union[
+        list, neo4j.Result, pd.DataFrame, MultiDiGraph]:
         """
-        Run a general Cypher query and return a list of dictionaries.
-        In cases of error, return an empty list.
-        A new session to the database driver is started, and then immediately terminated after running the query.
-        NOTE: if the Cypher query returns a node, and one wants to extract its internal Neo4j ID or labels
-              (in addition to all the properties and their values) then use query_expanded() instead.
-
+        Runs a general Cypher query
         :param q:       A Cypher query
         :param params:  An optional Cypher dictionary
                         EXAMPLE, assuming that the cypher string contains the substrings "$node_id":
                                 {'node_id': 20}
+        :param return_type: type of the returned result 'data'/'neo4j.Result'/'pd'/'nx'
+        *** When return_type == 'neo4j.Result':
+        Returns result of the query as a raw neo4j.Result object
+        (See https://neo4j.com/docs/api/python-driver/current/api.html#neo4j.Result)
+        *** When return_type == 'data' (default):
+        Returns a list of dictionaries.
+        In cases of error, return an empty list.
+        A new session to the database driver is started, and then immediately terminated after running the query.
         :return:        A (possibly empty) list of dictionaries.  Each dictionary in the list
                                 will depend on the nature of the Cypher query.
                         EXAMPLES:
@@ -166,21 +174,38 @@ class NeoInterface:
                                     -> a single list item such as [{ 'r': ({}, 'PAID_BY', {}) }]
                             Cypher creates nodes (without returning them)
                                     -> empty list
+        *** When return_type == 'pd':
+        Returns result of the query as a pandas dataframe
+        (See https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html)
+        by storing the values of node properties in columns of the dataframe
+        (note the info about the labels of the nodes is not persisted)
+        *** When return_type == 'nx':
+        Returns result of the query as a networkx graph
+        (See https://networkx.org/documentation/stable/reference/classes/multidigraph.html)
         """
-
+        assert return_type in ['data', 'neo4j.Result', 'pd', 'nx']
         # Start a new session, use it, and then immediately close it
         with self.driver.session() as new_session:
             result = new_session.run(q, params)
             # Note: result is a neo4j.Result object;
             #       more specifically, an object of type neo4j.work.result.Result
             #       See https://neo4j.com/docs/api/python-driver/current/api.html#neo4j.Result
-            if result is None:
-                return []
-
-            data_as_list = result.data()  # Return the result as a list of dictionaries.
-            #       This must be done inside the "with" block,
-            #       while the session is still open
-        return data_as_list
+            if return_type == 'neo4j.Result':
+                return result
+            elif return_type == 'data':  # default
+                if result is None:
+                    return []
+                return result.data()  # Return the result as a list of dictionaries.
+            elif return_type == 'pd':
+                result_1dict = []  # best-guess-merging all the results into 1 dict
+                for r in result:
+                    dct = {}
+                    for k, i in r.items():
+                        dct = {**dct, **(i if isinstance(i, dict) else {k: i})}
+                    result_1dict.append(dct)
+                return pd.DataFrame(result_1dict)
+            elif return_type == 'nx':
+                return graph_from_cypher(result)
 
     def query_expanded(self, q: str, params=None, flatten=False) -> []:
         """
@@ -217,6 +242,9 @@ class NeoInterface:
                                          'neo4j_end_node': <Node id=14 labels=frozenset() properties={}>,
                                          'neo4j_type': 'bought_by'}]
         """
+        warn("This procedure will be deprecated, use query(... return_type: str = 'neo4j.Result') instead",
+             DeprecationWarning,
+             stacklevel=2)
         # Start a new session, use it, and then immediately close it
         with self.driver.session() as new_session:
             result = new_session.run(q, params)
@@ -530,7 +558,7 @@ class NeoInterface:
         with self.driver.session() as new_session:
             # Fetch the parents
             cypher = f"MATCH (parent)-[inbound]->(n) WHERE id(n) = {node_id} " \
-                "RETURN id(parent) AS id, labels(parent) AS labels, type(inbound) AS rel"
+                     "RETURN id(parent) AS id, labels(parent) AS labels, type(inbound) AS rel"
             if self.debug:
                 print(f"""
                 query: {cypher}            
@@ -545,7 +573,7 @@ class NeoInterface:
 
             # Fetch the children
             cypher = f"MATCH (n)-[outbound]->(child) WHERE id(n) = {node_id} " \
-                "RETURN id(child) AS id, labels(child) AS labels, type(outbound) AS rel"
+                     "RETURN id(child) AS id, labels(child) AS labels, type(outbound) AS rel"
             if self.debug:
                 print(f"""
                 query: {cypher}      
@@ -1438,41 +1466,41 @@ class NeoInterface:
             //dummy property if no properties are ident                                          
             WITH *, CASE WHEN identProps = {} THEN {_dummy_prop_:1} ELSE identProps END as identProps 
         """ + \
-        ("""
+            ("""
         WITH 
             *, 
             apoc.map.mergeList([onCreateProps, {_timestamp: timestamp()}]) as onCreateProps,
             apoc.map.mergeList([onMatchProps, {_timestamp: timestamp()}]) as onMatchProps
         """ if timestamp else "") + \
-        """
-            CALL apoc.do.when(
-                size(apoc.coll.intersection(labels, $always_create)) > 0,    
-                "CALL apoc.create.node($labels, apoc.map.mergeList([$identProps, $onMatchProps, $onCreateProps])) YIELD node RETURN node",
-                "CALL apoc.merge.node($labels, $identProps, $onMatchProps, $onCreateProps) YIELD node RETURN node",
-                {labels: labels, identProps:identProps, onMatchProps:onMatchProps, onCreateProps:onCreateProps}
-            ) yield value as value2
-            WITH *, value2['node'] as node
-            //eliminating dummy property
-            CALL apoc.do.when( 
-                identProps = {_dummy_prop_: 1},
-                'REMOVE node._dummy_prop_ RETURN node',
-                'RETURN node',
-                {node: node}
-            ) YIELD value
-            WITH * 
-            WITH apoc.map.fromPairs(collect([nd['id'], node])) as node_map
-            UNWIND $map['relationships'] as rel                   
-            call apoc.merge.relationship(
-                node_map[rel['fromId']], 
-                CASE WHEN rel['type'] = '' OR rel['type'] IS NULL THEN 'RELATED' ELSE rel['type'] END, 
-                rel['properties'], 
-                {}, 
-                node_map[rel['toId']], {}
-            )
-            YIELD rel as relationship
-            WITH node_map, apoc.map.fromPairs(collect([rel['id'], relationship])) as rel_map
-            RETURN node_map, rel_map
             """
+                CALL apoc.do.when(
+                    size(apoc.coll.intersection(labels, $always_create)) > 0,    
+                    "CALL apoc.create.node($labels, apoc.map.mergeList([$identProps, $onMatchProps, $onCreateProps])) YIELD node RETURN node",
+                    "CALL apoc.merge.node($labels, $identProps, $onMatchProps, $onCreateProps) YIELD node RETURN node",
+                    {labels: labels, identProps:identProps, onMatchProps:onMatchProps, onCreateProps:onCreateProps}
+                ) yield value as value2
+                WITH *, value2['node'] as node
+                //eliminating dummy property
+                CALL apoc.do.when( 
+                    identProps = {_dummy_prop_: 1},
+                    'REMOVE node._dummy_prop_ RETURN node',
+                    'RETURN node',
+                    {node: node}
+                ) YIELD value
+                WITH * 
+                WITH apoc.map.fromPairs(collect([nd['id'], node])) as node_map
+                UNWIND $map['relationships'] as rel                   
+                call apoc.merge.relationship(
+                    node_map[rel['fromId']], 
+                    CASE WHEN rel['type'] = '' OR rel['type'] IS NULL THEN 'RELATED' ELSE rel['type'] END, 
+                    rel['properties'], 
+                    {}, 
+                    node_map[rel['toId']], {}
+                )
+                YIELD rel as relationship
+                WITH node_map, apoc.map.fromPairs(collect([rel['id'], relationship])) as rel_map
+                RETURN node_map, rel_map
+                """
         params = {
             'map': dct,
             'merge_on': (merge_on if merge_on else {}),
@@ -1797,7 +1825,7 @@ class NeoInterface:
                     assert isinstance(config['neighbours'], list), \
                         f"neighbours should be of type LIST [{{}}[, {{}}]] not {type(config['neighbours'])}"
                     for i, neighbour in enumerate(config['neighbours']):
-                        if isinstance(neighbour, list): #if a list converting it to a dict as per req.
+                        if isinstance(neighbour, list):  # if a list converting it to a dict as per req.
                             assert len(neighbour) == 3, \
                                 f"each neighbour should be of length 3: [<label>, <relationship>, <property>] got: {neighbour}"
                             neighbour = {'label': neighbour[0], 'relationship': neighbour[1], 'property': neighbour[2]}

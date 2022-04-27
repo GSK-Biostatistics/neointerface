@@ -176,37 +176,47 @@ name | arguments| return
 ## query()
 name | arguments| return
 -----| ---------| -------
-*query*| q: str, params = None| []
+*query*| q: str, params = None, return_type = 'data'| list/neo4j.Result/pd.DataFrame/MultiDiGraph
 
-    Run a general Cypher query and return a list of dictionaries.
-    In cases of error, return an empty list.
-    A new session to the database driver is started, and then immediately terminated after running the query.
-    NOTE: if the Cypher query returns a node, and one wants to extract its internal Neo4j ID or labels
-          (in addition to all the properties and their values) then use query_expanded() instead.
-
-    :param q:       A Cypher query
-    :param params:  An optional Cypher dictionary
-                    EXAMPLE, assuming that the cypher string contains the substrings "$node_id":
-                            {'node_id': 20}
-    :return:        A (possibly empty) list of dictionaries.  Each dictionary in the list
-                            will depend on the nature of the Cypher query.
-                    EXAMPLES:
-                        Cypher returns nodes (after finding or creating them): RETURN n1, n2
-                                -> list item such as {'n1': {'gender': 'M', 'patient_id': 123}
-                                                      'n2': {'gender': 'F', 'patient_id': 444}}
-                        Cypher returns attribute values that get renamed: RETURN n.gender AS client_gender, n.pid AS client_id
-                                -> list items such as {'client_gender': 'M', 'client_id': 123}
-                        Cypher returns attribute values without renaming: RETURN n.gender, n.pid
-                                -> list items such as {'n.gender': 'M', 'n.pid': 123}
-                        Cypher returns a single computed value
-                                -> a single list item such as {"count(n)": 100}
-                        Cypher returns a single relationship, with or without attributes: MERGE (c)-[r:PAID_BY]->(p)
-                                -> a single list item such as [{ 'r': ({}, 'PAID_BY', {}) }]
-                        Cypher creates nodes (without returning them)
-                                -> empty list
-
-
-
+        Runs a general Cypher query
+        :param q:       A Cypher query
+        :param params:  An optional Cypher dictionary
+                        EXAMPLE, assuming that the cypher string contains the substrings "$node_id":
+                                {'node_id': 20}
+        :param return_type: type of the returned result 'data'/'neo4j.Result'/'pd'/'nx'
+        *** When return_type == 'neo4j.Result':
+        Returns result of the query as a raw neo4j.Result object
+        (See https://neo4j.com/docs/api/python-driver/current/api.html#neo4j.Result)
+        *** When return_type == 'data' (default):
+        Returns a list of dictionaries.
+        In cases of error, return an empty list.
+        A new session to the database driver is started, and then immediately terminated after running the query.
+        :return:        A (possibly empty) list of dictionaries.  Each dictionary in the list
+                                will depend on the nature of the Cypher query.
+                        EXAMPLES:
+                            Cypher returns nodes (after finding or creating them): RETURN n1, n2
+                                    -> list item such as {'n1': {'gender': 'M', 'patient_id': 123}
+                                                          'n2': {'gender': 'F', 'patient_id': 444}}
+                            Cypher returns attribute values that get renamed: RETURN n.gender AS client_gender, n.pid AS client_id
+                                    -> list items such as {'client_gender': 'M', 'client_id': 123}
+                            Cypher returns attribute values without renaming: RETURN n.gender, n.pid
+                                    -> list items such as {'n.gender': 'M', 'n.pid': 123}
+                            Cypher returns a single computed value
+                                    -> a single list item such as {"count(n)": 100}
+                            Cypher returns a single relationship, with or without attributes: MERGE (c)-[r:PAID_BY]->(p)
+                                    -> a single list item such as [{ 'r': ({}, 'PAID_BY', {}) }]
+                            Cypher creates nodes (without returning them)
+                                    -> empty list
+        *** When return_type == 'pd':
+        Returns result of the query as a pandas dataframe
+        (See https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html)
+        by storing the values of node properties in columns of the dataframe
+        (note the info about the labels of the nodes is not persisted)
+        *** When return_type == 'nx':
+        Returns result of the query as a networkx graph
+        (See https://networkx.org/documentation/stable/reference/classes/multidigraph.html)
+        
+        
 ---
 
 
