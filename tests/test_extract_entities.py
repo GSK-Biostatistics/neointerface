@@ -1,8 +1,6 @@
 import pytest
 import neointerface
 import pandas as pd
-from utils.neointerface_utils import compare_recordsets
-
 
 # Provide a database connection that can be used by the various tests that need it
 @pytest.fixture(scope="module")

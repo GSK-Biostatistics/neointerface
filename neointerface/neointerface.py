@@ -12,8 +12,8 @@ import time
 from urllib.parse import quote
 from typing import Union
 from warnings import warn
-from utils.neointerface_utils import graph_from_cypher
 from networkx import MultiDiGraph
+from neo4j.graph import Node, Relationship, Path
 
 
 class NeoInterface:
@@ -205,7 +205,7 @@ class NeoInterface:
                     result_1dict.append(dct)
                 return pd.DataFrame(result_1dict)
             elif return_type == 'nx':
-                return graph_from_cypher(result)
+                return self.nx_graph_from_cypher(result)
 
     def query_expanded(self, q: str, params=None, flatten=False) -> []:
         """
@@ -309,6 +309,56 @@ class NeoInterface:
                     data_as_list.append(data)
 
             return data_as_list
+
+    @staticmethod
+    def nx_graph_from_cypher(data):
+        """Constructs a networkx graph from the results of a neo4j cypher query.
+        Example of use:
+        >>> result = session.run(query)
+        >>> G = nx_graph_from_cypher(result.data())
+
+        Nodes have fields 'labels' (frozenset) and 'properties' (dicts). Node IDs correspond to the neo4j graph.
+        Edges have fields 'type_' (string) denoting the type of relation, and 'properties' (dict)."""
+
+        G = MultiDiGraph()
+
+        def add_node(node):
+            # Adds node id it hasn't already been added
+            u = node.id
+            if G.has_node(u):
+                return
+            G.add_node(u, labels=node._labels, properties=dict(node))
+
+        def add_edge(relation):
+            # Adds edge if it hasn't already been added.
+            # Make sure the nodes at both ends are created
+            for node in (relation.start_node, relation.end_node):
+                add_node(node)
+            # Check if edge already exists
+            u = relation.start_node.id
+            v = relation.end_node.id
+            eid = relation.id
+            if G.has_edge(u, v, key=eid):
+                return
+            # If not, create it
+            G.add_edge(u, v, key=eid, type_=relation.type, properties=dict(relation))
+
+        for record in data:
+            for entry in record.values():
+                # Parse node
+                if isinstance(entry, Node):
+                    add_node(entry)
+                # Parse link
+                elif isinstance(entry, Relationship):
+                    add_edge(entry)
+                elif isinstance(entry, Path):
+                    for node in entry.nodes:
+                        add_node(node)
+                    for rel in entry.relationships:
+                        add_edge(rel)
+                else:
+                    raise TypeError("Unrecognized object")
+        return G
 
     ##################################################################################################
     #                                                                                                #

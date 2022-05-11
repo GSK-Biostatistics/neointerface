@@ -1,6 +1,6 @@
 import pytest
 from neointerface import neointerface
-from utils.neointerface_utils import compare_unordered_lists, compare_recordsets
+from pytest_unordered import unordered
 import os
 import pandas as pd
 import neo4j
@@ -118,14 +118,14 @@ def test_get_nodes(db):
                                      return_labels=True)  # Locate all males, across all node labels
     expected_records = [{'neo4j_labels': ['test_label'], 'gender': 'M', 'patient_id': 123},
                         {'neo4j_labels': ['my 2nd label'], 'client id': 999, 'gender': 'M', 'age': 30}]
-    assert compare_recordsets(retrieved_records, expected_records)
+    assert unordered(retrieved_records) == expected_records
 
     # Retrieve ALL nodes in the database (and also retrieve the labels)
     retrieved_records = db.get_nodes("", return_labels=True)
     expected_records = [{'neo4j_labels': ['test_label'], 'gender': 'M', 'patient_id': 123},
                         {'neo4j_labels': ['my 2nd label'], 'client id': 999, 'gender': 'M', 'age': 30},
                         {'neo4j_labels': ['my 2nd label'], 'client id': 123, 'gender': 'F', 'age': 21}]
-    assert compare_recordsets(retrieved_records, expected_records)
+    assert unordered(retrieved_records) == expected_records
 
     # Pass conflicting arguments; an Exception is expected
     with pytest.raises(Exception):
@@ -233,9 +233,8 @@ def test_create_node_by_label_and_dict(db):
                             {'patient id': 123, 'gender': 'M', 'condition_id': 'happy'}]
     expected_record_list_alt_order = [{'patient id': 123, 'gender': 'M', 'condition_id': 'happy'},
                                       {'gender': 'M', 'patient id': 123}]
-
-    assert compare_recordsets(retrieved_records_B, expected_record_list)
-    assert compare_recordsets(retrieved_records_B, expected_record_list_alt_order)  # We can test in any order :)
+    assert unordered(retrieved_records_B) == expected_record_list
+    assert unordered(retrieved_records_B) == expected_record_list_alt_order
 
     # Create a 3rd node with a duplicate of the first new node
     db.create_node_by_label_and_dict("test_label", {'patient id': 123, 'gender': 'M'})
@@ -245,8 +244,7 @@ def test_create_node_by_label_and_dict(db):
     expected_record_list = [{'patient id': 123, 'gender': 'M'},
                             {'patient id': 123, 'gender': 'M'},
                             {'patient id': 123, 'gender': 'M', 'condition_id': 'happy'}]
-
-    assert compare_recordsets(retrieved_records_C, expected_record_list)
+    assert unordered(retrieved_records_C) == expected_record_list
 
     # Create a 4th node with no attributes, and a different label
     db.create_node_by_label_and_dict("new_label", {})
@@ -254,22 +252,22 @@ def test_create_node_by_label_and_dict(db):
     # Retrieve just this last node
     retrieved_records_D = db.get_nodes("new_label")
     expected_record_list = [{}]
-    assert compare_recordsets(retrieved_records_D, expected_record_list)
+    assert unordered(retrieved_records_D) == expected_record_list
 
     # Create a 5th node with labels
     db.create_node_by_label_and_dict(["label 1", "label 2"], {'name': "double label"})
     # Look it up by one label
     retrieved_records = db.get_nodes("label 1")
     expected_record_list = [{'name': "double label"}]
-    assert compare_recordsets(retrieved_records, expected_record_list)
+    assert unordered(retrieved_records) == expected_record_list
     # Look it up by the other label
     retrieved_records = db.get_nodes("label 2")
     expected_record_list = [{'name': "double label"}]
-    assert compare_recordsets(retrieved_records, expected_record_list)
+    assert unordered(retrieved_records) == expected_record_list
     # Look it up by both labels
     retrieved_records = db.get_nodes(["label 1", "label 2"])
     expected_record_list = [{'name': "double label"}]
-    assert compare_recordsets(retrieved_records, expected_record_list)
+    assert unordered(retrieved_records) == expected_record_list
 
 
 def test_set_fields(db):
@@ -286,7 +284,7 @@ def test_set_fields(db):
     # Look up the updated record
     retrieved_records = db.get_nodes("car")
     expected_record_list = [{'vehicle id': 123, 'color': 'white', 'price': 7000}]
-    assert compare_recordsets(retrieved_records, expected_record_list)
+    assert unordered(retrieved_records) == expected_record_list
 
 
 def test_extracting_labels(db):
@@ -312,16 +310,16 @@ def test_extracting_labels(db):
 
     db.create_node_by_label_and_dict("venus", {'radius': 1234.5})
     labels = db.get_labels()
-    assert compare_unordered_lists(labels, ["mercury", "venus"])
+    assert unordered(labels) == ["mercury", "venus"]
 
     db.create_node_by_label_and_dict("earth", {'mass': 9999.9, 'radius': 1234.5})
     labels = db.get_labels()
-    assert compare_unordered_lists(labels, ["mercury", "earth", "venus"])  # The expected list may be
+    assert unordered(labels) == ["mercury", "earth", "venus"]
     # specified in any order
 
     db.create_node_by_label_and_dict("mars", {})
     labels = db.get_labels()
-    assert compare_unordered_lists(labels, ["mars", "earth", "mercury", "venus"])
+    assert unordered(labels) == ["mars", "earth", "mercury", "venus"]
 
 
 def test_get_relationshipTypes(db):
@@ -361,7 +359,7 @@ def test_clean_slate(db):
     db.delete_nodes_by_label(delete_labels=["label_1", "label_4"])
     # Verify that only labels not marked for deletions are left behind
     labels = db.get_labels()
-    assert compare_unordered_lists(labels, ["label_2", "label_3"])
+    assert unordered(labels) == ["label_2", "label_3"]
 
     # Test of keeping only specific labels
     # Completely clear the database
@@ -375,10 +373,10 @@ def test_clean_slate(db):
     db.clean_slate(keep_labels=["label_4", "label_3"])
     # Verify that only labels not marked for deletions are left behind
     labels = db.get_labels()
-    assert compare_unordered_lists(labels, ["label_4", "label_3"])
+    assert unordered(labels) ==  ["label_4", "label_3"]
     # Doubly-verify that one of the saved nodes can be read in
     recordset = db.get_nodes("label_3")
-    assert compare_recordsets(recordset, [{'client_id': 456, 'name': 'Julian'}])
+    assert unordered(recordset) == [{'client_id': 456, 'name': 'Julian'}]
 
 
 def test_dict_to_cypher(db):
@@ -443,16 +441,16 @@ def test_get_single_field(db):
              ''')
 
     result = db.get_single_field(labels="my label", field_name="field A")
-    assert compare_unordered_lists(result, [123, None])
+    assert unordered(result) ==  [123, None]
 
     result = db.get_single_field(labels="my label", field_name="field B")
-    assert compare_unordered_lists(result, ['test', 'more test'])
+    assert unordered(result) ==  ['test', 'more test']
 
     result = db.get_single_field(labels="make", field_name="field C")
-    assert compare_unordered_lists(result, [3.14])
+    assert unordered(result) ==  [3.14]
 
     result = db.get_single_field(labels="", field_name="field C")  # No labels specified
-    assert compare_unordered_lists(result, [None, 3.14])
+    assert unordered(result) ==  [None, 3.14]
 
 
 def test_prepare_labels(db):
@@ -486,37 +484,29 @@ def test_get_parents_and_children(db):
 
     result = db.get_parents_and_children(node_id)
     assert result['child_list'] == []
-    compare_recordsets(result['parent_list'],
-                       [{'id': parent1_id, 'labels': ['parent'], 'rel': 'PARENT_OF'},
-                        {'id': parent2_id, 'labels': ['parent'], 'rel': 'PARENT_OF'}
-                        ]
-                       )
+    assert unordered(result['parent_list']) == [
+        {'id': parent1_id, 'labels': ['parent'], 'rel': 'PARENT_OF'},
+        {'id': parent2_id, 'labels': ['parent'], 'rel': 'PARENT_OF'}
+    ]
 
     child1_id = db.create_node_by_label_and_dict("child", {'age': 13, 'gender': 'F'})  # Add a first child node
     db.link_nodes_by_ids(node_id, child1_id, "PARENT_OF")
 
     result = db.get_parents_and_children(node_id)
     assert result['child_list'] == [{'id': child1_id, 'labels': ['child'], 'rel': 'PARENT_OF'}]
-    compare_recordsets(result['parent_list'],
-                       [{'id': parent1_id, 'labels': ['parent'], 'rel': 'PARENT_OF'},
-                        {'id': parent2_id, 'labels': ['parent'], 'rel': 'PARENT_OF'}
-                        ]
-                       )
+    assert unordered(result['parent_list']) == [
+        {'id': parent1_id, 'labels': ['parent'], 'rel': 'PARENT_OF'},
+        {'id': parent2_id, 'labels': ['parent'], 'rel': 'PARENT_OF'}
+    ]
 
     child2_id = db.create_node_by_label_and_dict("child", {'age': 16, 'gender': 'F'})  # Add a 2nd child node
     db.link_nodes_by_ids(node_id, child2_id, "PARENT_OF")
 
     result = db.get_parents_and_children(node_id)
-    compare_recordsets(result['child_list'],
-                       [{'id': child1_id, 'labels': ['child'], 'rel': 'PARENT_OF'},
-                        {'id': child2_id, 'labels': ['child'], 'rel': 'PARENT_OF'}
-                        ]
-                       )
-    compare_recordsets(result['parent_list'],
-                       [{'id': parent1_id, 'labels': ['parent'], 'rel': 'PARENT_OF'},
-                        {'id': parent2_id, 'labels': ['parent'], 'rel': 'PARENT_OF'}
-                        ]
-                       )
+    assert unordered(result['child_list']) == [
+        {'id': child1_id, 'labels': ['child'], 'rel': 'PARENT_OF'},
+        {'id': child2_id, 'labels': ['child'], 'rel': 'PARENT_OF'}
+    ]
 
     # Look at the children/parents of a "grandparent"
     result = db.get_parents_and_children(parent1_id)
@@ -850,7 +840,7 @@ def test_create_constraint(db):
     result = db.get_constraints()
     assert len(result) == 1
     expected_list = ["name", "description", "details"]
-    compare_unordered_lists(list(result.columns), expected_list)
+    assert unordered(list(result.columns)) == expected_list
     assert result.iloc[0]["name"] == "my_first_constraint"
 
     status = db.create_constraint("car", "registration_number")
@@ -859,7 +849,7 @@ def test_create_constraint(db):
     result = db.get_constraints()
     assert len(result) == 2
     expected_list = ["name", "description", "details"]
-    compare_unordered_lists(list(result.columns), expected_list)
+    assert unordered(list(result.columns)) == expected_list
     cname0 = result.iloc[0]["name"]
     cname1 = result.iloc[1]["name"]
     assert cname0 == "car.registration_number.UNIQUE" or cname1 == "car.registration_number.UNIQUE"
@@ -889,14 +879,14 @@ def test_get_constraints(db):
     result = db.get_constraints()
     assert len(result) == 1
     expected_list = ["name", "description", "details"]
-    compare_unordered_lists(list(result.columns), expected_list)
+    assert unordered(list(result.columns)) == expected_list
     assert result.iloc[0]["name"] == "my_first_constraint"
 
     db.query("CREATE CONSTRAINT unique_model ON (n:car) ASSERT n.model IS UNIQUE")
     result = db.get_constraints()
     assert len(result) == 2
     expected_list = ["name", "description", "details"]
-    compare_unordered_lists(list(result.columns), expected_list)
+    assert unordered(list(result.columns)) == expected_list
     assert result.iloc[1]["name"] == "unique_model"
 
 
@@ -1000,19 +990,19 @@ def test_load_df(db):
                merge=True)  # merge flag is ignored because there's no primary key: records will always get added
     result = db.get_nodes("A")
     expected = [{'col1': 123}, {'col1': 999}]
-    assert compare_recordsets(result, expected)
+    assert unordered(result) == expected
 
     df = pd.DataFrame([[2222]], columns=["col2"])
     db.load_df(df, "A")
     result = db.get_nodes("A")
     expected = [{'col1': 123}, {'col1': 999}, {'col2': 2222}]
-    assert compare_recordsets(result, expected)
+    assert unordered(result) == expected
 
     df = pd.DataFrame([[3333]], columns=["col3"])
     db.load_df(df, "B")
     A_nodes = db.get_nodes("A")
     expected_A = [{'col1': 123}, {'col1': 999}, {'col2': 2222}]
-    assert compare_recordsets(A_nodes, expected_A)
+    assert unordered(A_nodes) == expected_A
     B_nodes = db.get_nodes("B")
     assert B_nodes == [{'col3': 3333}]
 
@@ -1026,14 +1016,14 @@ def test_load_df(db):
     A_nodes = db.get_nodes("A")
     expected = [{'col1': 123}, {'col1': 999}, {'col2': 2222}, {'col3': 100, 'name': 'Jack'},
                 {'col3': 200, 'name': 'Jill'}]
-    assert compare_recordsets(A_nodes, expected)
+    assert unordered(A_nodes) == expected
 
     # Change the column names during import
     df = pd.DataFrame({"alternate_name": [1000]})
     db.load_df(df, "B", merge=False, rename={"alternate_name": "col3"})  # Map "alternate_name" into "col3"
     B_nodes = db.get_nodes("B")
     expected_B = [{'col3': 3333}, {'col3': 3333}, {'col3': 1000}]
-    assert compare_recordsets(B_nodes, expected_B)
+    assert unordered(B_nodes) == expected_B
 
     # Test primary_key with merge
     df = pd.DataFrame({"patient_id": [100, 200], "name": ["Jack", "Jill"]})

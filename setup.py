@@ -9,12 +9,12 @@ def read_text(file_name: str):
 
 setuptools.setup(
     name="neointerface",                     # This is the name of the package
-    version="3.1.2",                         # The initial release version
+    version="3.1.3",                         # The initial release version
     author="Alexey Kuznetsov, Julian West",  # Full name of the authors
     description="A Python interface to use the Neo4j graph database",
     long_description=long_description,      # Long description read from the the readme file
     long_description_content_type="text/markdown",
-    packages=setuptools.find_packages(exclude=["tests", "utils"]),    # List of all python modules to be installed
+    packages=setuptools.find_packages(exclude=["tests"]),    # List of all python modules to be installed
     classifiers=[
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
