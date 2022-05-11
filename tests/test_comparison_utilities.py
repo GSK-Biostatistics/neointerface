@@ -1,4 +1,4 @@
-from utils.utils import *
+from utils.neointerface_utils import *
 
 
 def test_compare_unordered_lists():

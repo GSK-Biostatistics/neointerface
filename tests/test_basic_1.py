@@ -1,6 +1,6 @@
 import pytest
 from neointerface import neointerface
-from utils.utils import compare_unordered_lists, compare_recordsets
+from utils.neointerface_utils import compare_unordered_lists, compare_recordsets
 import os
 import pandas as pd
 import neo4j

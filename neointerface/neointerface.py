@@ -12,7 +12,7 @@ import time
 from urllib.parse import quote
 from typing import Union
 from warnings import warn
-from utils.utils import graph_from_cypher
+from utils.neointerface_utils import graph_from_cypher
 from networkx import MultiDiGraph
 
 
