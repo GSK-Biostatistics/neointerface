@@ -1311,6 +1311,14 @@ class NeoInterface:
     #                                   METHODS TO READ IN DATA                                         #
     #                                                                                                   #
     #####################################################################################################
+    @staticmethod
+    def pd_datetime_to_neo4j_datetime(df: pd.DataFrame):
+        for col in df.columns:
+            if pd.core.dtypes.common.is_datetime_or_timedelta_dtype(df[col]):
+                df[col] = df[col].map(
+                    lambda x: None if pd.isna(x) else neo4j.time.DateTime.from_native(x)
+                )
+        return df
 
     def load_df(
             self,
@@ -1346,6 +1354,8 @@ class NeoInterface:
             df = pd.DataFrame(df)
         if rename is not None:
             df = df.rename(rename, axis=1)  # Rename the columns in the Pandas data frame
+
+        df = self.pd_datetime_to_neo4j_datetime(df)
 
         primary_key_s = ''
         if primary_key is not None:

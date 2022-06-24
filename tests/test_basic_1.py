@@ -5,6 +5,7 @@ import os
 import pandas as pd
 import neo4j
 from networkx import MultiDiGraph
+from datetime import datetime
 
 
 # Provide a database connection that can be used by the various tests that need it
@@ -1037,6 +1038,24 @@ def test_load_df(db):
     assert X_nodes == [{'patient_id': 100, 'name': 'Jack', }, {'patient_id': 200, 'name': 'Jill again'},
                        {'patient_id': 300, 'name': 'Remy'}]
 
+def test_load_df_datetime(db):
+    db.delete_nodes_by_label(delete_labels=["MYTEST"])
+    test_df = pd.DataFrame({
+        'int_values': [2, 1, 3, 4],
+        'str_values': ['abc', 'def', 'ghi', 'zzz'],
+        'start': [datetime(year=2010, month=1, day=1, hour=0, minute=1, second=2, microsecond=123),
+                  datetime(year=2020, month=1, day=1),
+                  pd.NaT,
+                  None]
+    })
+    db.load_df(test_df, "MYTEST")
+
+    res_df = db.query(
+        "MATCH (x:MYTEST) RETURN x.start as start ORDER BY start",
+        return_type="pd"
+    ) #TODO: .query to convert datatypes from Neo4j to datetime? - will the check for neo4j.time.DateTime decrease performance of .query?
+    expected_result = db.pd_datetime_to_neo4j_datetime(test_df[['start']])
+    assert res_df.equals(expected_result)
 
 def test_load_df_return_node_ids(db):
     db.delete_nodes_by_label(delete_labels=["MYTEST"])
