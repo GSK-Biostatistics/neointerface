@@ -92,10 +92,21 @@ class NeoInterface:
             else:
                 self.driver = GraphDatabase.driver(self.host,
                                                    auth=None)  # Object to connect to Neo4j's Bolt driver for Python
-            if self.verbose:
-                print(f"Connection to {self.host} established")
+
         except Exception as ex:
             error_msg = f"CHECK IF NEO4J IS RUNNING! While instantiating the NeoInterface object, failed to create the driver: {ex}"
+            raise Exception(error_msg)
+        else:
+            self.test_connection()
+
+        if self.verbose:
+            print(f"Connection to {self.host} established")
+
+    def test_connection(self):
+        try:
+            self.query("RETURN 10")
+        except Exception as ex:
+            error_msg = f"Connection to {self.host} was unsuccessful! Check if NEO4J is running and/or that your credentials are correct."
             raise Exception(error_msg)
 
     def rdf_config(self) -> None:
