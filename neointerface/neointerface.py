@@ -1006,14 +1006,15 @@ class NeoInterface:
         :param drop_constraints:Flag indicating whether to also ditch all constraints (by default, True)
         :return:                None
         """
+        if drop_indexes:
+            self.drop_all_indexes(including_constraints=drop_constraints)
+            #TODO: check if self.rdf the dropped constraint fon Resource.uri does not cause trouble
+
         if self.rdf:
             self.delete_nodes_by_label(
                 keep_labels=(keep_labels + ['_GraphConfig'] if keep_labels else ['_GraphConfig']))
         else:
             self.delete_nodes_by_label(keep_labels=keep_labels)
-
-        if drop_indexes:
-            self.drop_all_indexes(including_constraints=drop_constraints)
 
     def set_fields(self, labels, set_dict, properties_condition=None, cypher_clause=None, cypher_dict=None) -> None:
         """
