@@ -1,6 +1,7 @@
 from neo4j import GraphDatabase  # The Neo4j python connectivity library "Neo4j Python Driver"
 from neo4j import __version__ as neo4j_driver_version  # The version of the Neo4j driver being used
 import neo4j.graph  # To check returned data types
+from neo4j.time import DateTime, Date  # to convert neo4j.time.DateTime's to python datetimes (and Dates)
 import numpy as np
 import pandas as pd
 import inspect
@@ -187,18 +188,24 @@ class NeoInterface:
         # Start a new session, use it, and then immediately close it
         with self.driver.session() as new_session:
             result = new_session.run(q, params)
+
             # Note: result is a neo4j.Result object;
             #       more specifically, an object of type neo4j.work.result.Result
             #       See https://neo4j.com/docs/api/python-driver/current/api.html#neo4j.Result
+
             if return_type == 'neo4j.Result':
                 return result
             elif return_type == 'data':  # default
                 if result is None:
                     return []
-                return result.data()  # Return the result as a list of dictionaries.
+                result_data = result.data()
+                self.update_values(source=result_data)
+                return result_data  # Return the result as a list of dictionaries.
             elif return_type == 'pd':
+                result_data = result.data()
+                self.update_values(source=result_data)
                 result_1dict = []  # best-guess-merging all the results into 1 dict
-                for r in result:
+                for r in result_data:
                     dct = {}
                     for k, i in r.items():
                         dct = {**dct, **(i if isinstance(i, dict) else {k: i})}
@@ -359,6 +366,23 @@ class NeoInterface:
                 else:
                     raise TypeError("Unrecognized object")
         return G
+
+    def update_values(self, source, original=None, key_or_index=None):
+        """
+        Recursively scan a combination of nested lists and dictionaries and modify values inplace that
+        match the following types:
+            - neo4j.time.DateTime -> datetime.datetime
+            - neo4j.time.Date -> datetime.date
+        """
+        if isinstance(source, dict):
+            for k, v in source.items():
+                self.update_values(v, original=source, key_or_index=k)
+        elif isinstance(source, (list, set)):
+            for i, v in enumerate(source):
+                self.update_values(v, original=source, key_or_index=i)
+        elif isinstance(source, (DateTime, Date)):
+            new_value = source.to_native()
+            original[key_or_index] = new_value
 
     ##################################################################################################
     #                                                                                                #
