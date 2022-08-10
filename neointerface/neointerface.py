@@ -1341,12 +1341,13 @@ class NeoInterface:
     #####################################################################################################
     @staticmethod
     def pd_datetime_to_neo4j_datetime(df: pd.DataFrame):
-        for col in df.columns:
-            if pd.core.dtypes.common.is_datetime_or_timedelta_dtype(df[col]):
-                df[col] = df[col].map(
+        df_copy = df.copy()
+        for col in df_copy.columns:
+            if pd.core.dtypes.common.is_datetime_or_timedelta_dtype(df_copy[col]):
+                df_copy[col] = df_copy[col].map(
                     lambda x: None if pd.isna(x) else neo4j.time.DateTime.from_native(x)
                 )
-        return df
+        return df_copy
 
     def load_df(
             self,

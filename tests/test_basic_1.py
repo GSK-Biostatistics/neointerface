@@ -579,6 +579,11 @@ def test_query_datetimes(db):
                  'c': {'date': date(2019, 6, 1), 'color': 'blue'}}]
     assert result == expected
 
+def test_load_query_datetimes(db):
+    expected_df = pd.DataFrame([[datetime(2019, 6, 1, 18, 40, 32, 0), date(2019, 6, 1)]], columns=["dtm", "dt"])
+    db.load_df(expected_df, label="MYTEST")
+    result_df = db.query("MATCH (x:MYTEST) return x.dtm as dtm, x.dt as dt", return_type="pd")
+    assert expected_df.equals(result_df)
 
 def test_query_neo4jResult(db):
     result = db.query("RETURN 1", return_type="neo4j.Result")
