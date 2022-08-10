@@ -93,10 +93,21 @@ class NeoInterface:
             else:
                 self.driver = GraphDatabase.driver(self.host,
                                                    auth=None)  # Object to connect to Neo4j's Bolt driver for Python
-            if self.verbose:
-                print(f"Connection to {self.host} established")
+
         except Exception as ex:
             error_msg = f"CHECK IF NEO4J IS RUNNING! While instantiating the NeoInterface object, failed to create the driver: {ex}"
+            raise Exception(error_msg)
+        else:
+            self.test_connection()
+
+        if self.verbose:
+            print(f"Connection to {self.host} established")
+
+    def test_connection(self):
+        try:
+            self.query("RETURN 10")
+        except Exception as ex:
+            error_msg = f"Connection to {self.host} was unsuccessful! Check if NEO4J is running and/or that your credentials are correct."
             raise Exception(error_msg)
 
     def rdf_config(self) -> None:
@@ -1023,14 +1034,15 @@ class NeoInterface:
         :param drop_constraints:Flag indicating whether to also ditch all constraints (by default, True)
         :return:                None
         """
+        if drop_indexes:
+            self.drop_all_indexes(including_constraints=drop_constraints)
+            #TODO: check if self.rdf the dropped constraint fon Resource.uri does not cause trouble
+
         if self.rdf:
             self.delete_nodes_by_label(
                 keep_labels=(keep_labels + ['_GraphConfig'] if keep_labels else ['_GraphConfig']))
         else:
             self.delete_nodes_by_label(keep_labels=keep_labels)
-
-        if drop_indexes:
-            self.drop_all_indexes(including_constraints=drop_constraints)
 
     def set_fields(self, labels, set_dict, properties_condition=None, cypher_clause=None, cypher_dict=None) -> None:
         """
