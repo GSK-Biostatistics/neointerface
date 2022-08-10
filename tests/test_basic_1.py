@@ -3,9 +3,11 @@ from neointerface import neointerface
 from pytest_unordered import unordered
 import os
 import pandas as pd
+import numpy as np
 import neo4j
 from networkx import MultiDiGraph
-from datetime import datetime
+from datetime import datetime, date
+from neo4j.time import DateTime, Date
 
 
 # Provide a database connection that can be used by the various tests that need it
@@ -565,6 +567,24 @@ def test_query_data(db):
     assert result == [{'r': ({}, 'bought_by', {})}]
 
 
+def test_query_datetimes(db):
+    db.clean_slate()
+
+    q = '''CREATE (b:boat {number_masts: 2, datetime: localdatetime("2019-06-01T18:40:32")}),
+                  (c:car {color: "blue", date: date("2019-06-01")})
+           RETURN b, c
+        '''  # Create and return multiple nodes
+    result = db.query(q)
+    expected = [{'b': {'number_masts': 2, 'datetime': datetime(2019, 6, 1, 18, 40, 32)},
+                 'c': {'date': date(2019, 6, 1), 'color': 'blue'}}]
+    assert result == expected
+
+def test_load_query_datetimes(db):
+    expected_df = pd.DataFrame([[datetime(2019, 6, 1, 18, 40, 32, 0), date(2019, 6, 1)]], columns=["dtm", "dt"])
+    db.load_df(expected_df, label="MYTEST")
+    result_df = db.query("MATCH (x:MYTEST) return x.dtm as dtm, x.dt as dt", return_type="pd")
+    assert expected_df.equals(result_df)
+
 def test_query_neo4jResult(db):
     result = db.query("RETURN 1", return_type="neo4j.Result")
     assert isinstance(result, neo4j.Result)
@@ -592,6 +612,35 @@ def test_query_nx(db):
     assert [x[1].get('labels') for x in result.nodes.data()] == [frozenset({'A'}), frozenset({'B'})]
     assert [x[2].get('properties') for x in result.edges.data()] == [{'r': 0}]
     assert [x[2].get('type_') for x in result.edges.data()] == ['RELATES_TO']
+
+
+def test_update_values(db):
+    db.clean_slate()
+    # input containing neo4j.time.Datetime and neo4j.time.Date objects
+    _input = [
+        {
+            '1': {},
+            '2': {'1': 1, '2': 'test_string_a', '3': [1, 2, 3, 4, DateTime(year=2022, month=10, day=25)]},
+            3: [date(2022, 8, 8)]
+        },
+        {'test_string_b': Date(year=2022, month=10, day=25), 4: '2018-04-05T12:34:00'},
+        {},
+        [np.NaN, pd.NaT, None]
+    ]
+    # expected output that contains python datetime and date objects instead of neo4j datetime and date objects
+    expected = [
+        {
+            '1': {},
+            '2': {'1': 1, '2': 'test_string_a', '3': [1, 2, 3, 4, datetime(2022, 10, 25)]},
+            3: [date(2022, 8, 8)]
+        },
+        {'test_string_b': date(2022, 10, 25), 4: '2018-04-05T12:34:00'},
+        {},
+        [np.nan, pd.NaT, None]
+    ]
+    db.update_values(source=_input)
+    assert len(_input) == len(expected)
+    assert all(i in expected for i in _input)
 
 
 # def test_query_expanded(db):
@@ -1038,9 +1087,10 @@ def test_load_df(db):
     assert X_nodes == [{'patient_id': 100, 'name': 'Jack', }, {'patient_id': 200, 'name': 'Jill again'},
                        {'patient_id': 300, 'name': 'Remy'}]
 
+
 def test_load_df_datetime(db):
     db.delete_nodes_by_label(delete_labels=["MYTEST"])
-    test_df = pd.DataFrame({
+    input_df = pd.DataFrame({
         'int_values': [2, 1, 3, 4],
         'str_values': ['abc', 'def', 'ghi', 'zzz'],
         'start': [datetime(year=2010, month=1, day=1, hour=0, minute=1, second=2, microsecond=123),
@@ -1048,14 +1098,15 @@ def test_load_df_datetime(db):
                   pd.NaT,
                   None]
     })
-    db.load_df(test_df, "MYTEST")
+    expected_df = input_df.copy()[['start']]
 
+    db.load_df(input_df, "MYTEST")
     res_df = db.query(
         "MATCH (x:MYTEST) RETURN x.start as start ORDER BY start",
         return_type="pd"
-    ) #TODO: .query to convert datatypes from Neo4j to datetime? - will the check for neo4j.time.DateTime decrease performance of .query?
-    expected_result = db.pd_datetime_to_neo4j_datetime(test_df[['start']])
-    assert res_df.equals(expected_result)
+    )
+    assert res_df.equals(expected_df)
+
 
 def test_load_df_return_node_ids(db):
     db.delete_nodes_by_label(delete_labels=["MYTEST"])

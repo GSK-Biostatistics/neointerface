@@ -1,6 +1,7 @@
 from neo4j import GraphDatabase  # The Neo4j python connectivity library "Neo4j Python Driver"
 from neo4j import __version__ as neo4j_driver_version  # The version of the Neo4j driver being used
 import neo4j.graph  # To check returned data types
+from neo4j.time import DateTime, Date  # to convert neo4j.time.DateTime's to python datetimes (and Dates)
 import numpy as np
 import pandas as pd
 import inspect
@@ -153,7 +154,7 @@ class NeoInterface:
     #                                                                                          #
     ############################################################################################
 
-    def query(self, q: str, params=None, return_type: str = 'data') -> Union[
+    def query(self, q: str, params=None, return_type: str = 'data', convert_dates: bool = True) -> Union[
         list, neo4j.Result, pd.DataFrame, MultiDiGraph]:
         """
         Runs a general Cypher query
@@ -167,6 +168,8 @@ class NeoInterface:
         (See https://neo4j.com/docs/api/python-driver/current/api.html#neo4j.Result)
         *** When return_type == 'data' (default):
         Returns a list of dictionaries.
+        :param convert_dates: if True convert neo4j.time.DateTime and neo4j.time.Date to equivalent Python types. Only
+        applies to 'pd' and 'data' return types.
         In cases of error, return an empty list.
         A new session to the database driver is started, and then immediately terminated after running the query.
         :return:        A (possibly empty) list of dictionaries.  Each dictionary in the list
@@ -198,18 +201,26 @@ class NeoInterface:
         # Start a new session, use it, and then immediately close it
         with self.driver.session() as new_session:
             result = new_session.run(q, params)
+
             # Note: result is a neo4j.Result object;
             #       more specifically, an object of type neo4j.work.result.Result
             #       See https://neo4j.com/docs/api/python-driver/current/api.html#neo4j.Result
+
             if return_type == 'neo4j.Result':
                 return result
             elif return_type == 'data':  # default
                 if result is None:
                     return []
-                return result.data()  # Return the result as a list of dictionaries.
+                result_data = result.data()
+                if convert_dates:
+                    self.update_values(source=result_data)
+                return result_data  # Return the result as a list of dictionaries.
             elif return_type == 'pd':
+                result_data = result.data()
+                if convert_dates:
+                    self.update_values(source=result_data)
                 result_1dict = []  # best-guess-merging all the results into 1 dict
-                for r in result:
+                for r in result_data:
                     dct = {}
                     for k, i in r.items():
                         dct = {**dct, **(i if isinstance(i, dict) else {k: i})}
@@ -370,6 +381,23 @@ class NeoInterface:
                 else:
                     raise TypeError("Unrecognized object")
         return G
+
+    def update_values(self, source, original=None, key_or_index=None):
+        """
+        Recursively scan a combination of nested lists and dictionaries and modify values inplace that
+        match the following types:
+            - neo4j.time.DateTime -> datetime.datetime
+            - neo4j.time.Date -> datetime.date
+        """
+        if isinstance(source, dict):
+            for k, v in source.items():
+                self.update_values(v, original=source, key_or_index=k)
+        elif isinstance(source, (list, set)):
+            for i, v in enumerate(source):
+                self.update_values(v, original=source, key_or_index=i)
+        elif isinstance(source, (DateTime, Date)):
+            new_value = source.to_native()
+            original[key_or_index] = new_value
 
     ##################################################################################################
     #                                                                                                #
@@ -1325,12 +1353,13 @@ class NeoInterface:
     #####################################################################################################
     @staticmethod
     def pd_datetime_to_neo4j_datetime(df: pd.DataFrame):
-        for col in df.columns:
-            if pd.core.dtypes.common.is_datetime_or_timedelta_dtype(df[col]):
-                df[col] = df[col].map(
+        df_copy = df.copy()
+        for col in df_copy.columns:
+            if pd.core.dtypes.common.is_datetime_or_timedelta_dtype(df_copy[col]):
+                df_copy[col] = df_copy[col].map(
                     lambda x: None if pd.isna(x) else neo4j.time.DateTime.from_native(x)
                 )
-        return df
+        return df_copy
 
     def load_df(
             self,
