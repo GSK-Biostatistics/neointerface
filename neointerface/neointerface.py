@@ -143,7 +143,7 @@ class NeoInterface:
     #                                                                                          #
     ############################################################################################
 
-    def query(self, q: str, params=None, return_type: str = 'data') -> Union[
+    def query(self, q: str, params=None, return_type: str = 'data', convert_dates: bool = True) -> Union[
         list, neo4j.Result, pd.DataFrame, MultiDiGraph]:
         """
         Runs a general Cypher query
@@ -157,6 +157,8 @@ class NeoInterface:
         (See https://neo4j.com/docs/api/python-driver/current/api.html#neo4j.Result)
         *** When return_type == 'data' (default):
         Returns a list of dictionaries.
+        :param convert_dates: if True convert neo4j.time.DateTime and neo4j.time.Date to equivalent Python types. Only
+        applies to 'pd' and 'data' return types.
         In cases of error, return an empty list.
         A new session to the database driver is started, and then immediately terminated after running the query.
         :return:        A (possibly empty) list of dictionaries.  Each dictionary in the list
@@ -199,11 +201,13 @@ class NeoInterface:
                 if result is None:
                     return []
                 result_data = result.data()
-                self.update_values(source=result_data)
+                if convert_dates:
+                    self.update_values(source=result_data)
                 return result_data  # Return the result as a list of dictionaries.
             elif return_type == 'pd':
                 result_data = result.data()
-                self.update_values(source=result_data)
+                if convert_dates:
+                    self.update_values(source=result_data)
                 result_1dict = []  # best-guess-merging all the results into 1 dict
                 for r in result_data:
                     dct = {}
