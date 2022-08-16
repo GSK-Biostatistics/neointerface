@@ -7,6 +7,27 @@ with open("README.md", "r") as fh:
 def read_text(file_name: str):
     return open(os.path.join(file_name)).read()
 
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
+
+required = []
+dependency_links = []
+
+# Do not add to required lines pointing to Git repositories
+EGG_MARK = '#egg='
+for line in requirements:
+    if line.startswith('-e git:') or line.startswith('-e git+') or \
+            line.startswith('git:') or line.startswith('git+'):
+        if EGG_MARK in line:
+            package_name = line[line.find(EGG_MARK) + len(EGG_MARK):]
+            required.append(package_name)
+            dependency_links.append(line)
+        else:
+            print('Dependency to a git repository should have the format:')
+            print('git+ssh://git@github.com/xxxxx/xxxxxx#egg=package_name')
+    else:
+        required.append(line)
+
 setuptools.setup(
     name="neointerface",                     # This is the name of the package
     version="3.1.5",                         # The initial release version
@@ -22,5 +43,6 @@ setuptools.setup(
     license=read_text("LICENSE"),
     python_requires='>=3.6',                # Minimum version requirement of the package
     # package_dir={'':''},                  # Directory of the source code of the package
-    install_requires=["numpy==1.19.5", "pandas==1.1.5", "neo4j==4.4.0", "requests==2.25.1"]      # Install other dependencies if any
+    install_requires=required,
+    dependency_links=dependency_links
 )
