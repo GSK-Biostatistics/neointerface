@@ -1369,6 +1369,7 @@ class NeoInterface:
             primary_key=None,
             merge_overwrite=False,
             rename=None,
+            numeric_columns=None,
             max_chunk_size=10000) -> list:
         """
         Load a Pandas data frame into Neo4j.
@@ -1388,6 +1389,8 @@ class NeoInterface:
                                 will not be deleted)
         :param rename:          Optional dictionary to rename the Pandas dataframe's columns to
                                     EXAMPLE {"current_name": "name_we_want"}
+        :param numeric_columns  Optional list of dtype int64 or float64 column names. When used, node properties created
+                                from these columns will only be set if they are not NaN.
         :param max_chunk_size:  To limit the number of rows loaded at one time
         :return:                List of node ids, created in the operation
         """
@@ -1410,13 +1413,24 @@ class NeoInterface:
         op = 'MERGE' if (merge and primary_key) else 'CREATE'  # A MERGE or CREATE operation, as needed
         res = []
         for df_chunk in np.array_split(df, int(len(df.index) / max_chunk_size) + 1):  # Split the operation into batches
-            cypher = f'''
-            WITH $data AS data 
-            UNWIND data AS record {op} (x:`{label}`{primary_key_s}) 
-            SET x{('' if merge_overwrite else '+')}=record 
-            RETURN id(x) as node_id 
-            '''
-            cypher_dict = {'data': df_chunk.to_dict(orient='records')}
+            if numeric_columns:
+                cypher = f'''
+                WITH $data AS data 
+                UNWIND data AS record 
+                WITH record, [key in $numeric_columns WHERE toString(record[key]) = 'NaN'] as exclude_keys
+                {op} (x:`{label}`{primary_key_s}) 
+                SET x{('' if merge_overwrite else '+')}= apoc.map.removeKeys(record, exclude_keys)
+                RETURN id(x) as node_id 
+                '''
+                cypher_dict = {'data': df_chunk.to_dict(orient='records'), 'numeric_columns': numeric_columns}
+            else:
+                cypher = f'''
+                WITH $data AS data 
+                UNWIND data AS record {op} (x:`{label}`{primary_key_s}) 
+                SET x{('' if merge_overwrite else '+')}=record 
+                RETURN id(x) as node_id 
+                '''
+                cypher_dict = {'data': df_chunk.to_dict(orient='records')}
             if self.debug:
                 print(f"""
                 query: {cypher}
