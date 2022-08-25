@@ -1090,16 +1090,16 @@ def test_load_df(db):
 
 def test_load_df_numeric_columns(db):
     db.clean_slate()
-    # Test load df with nans and numeric columns
+    # Test load df with nans and ignore_nan = True
     df = pd.DataFrame({"name": ["Bob", "Tom"], "col1": [26, None], "col2": [1.1, None]})
-    db.load_df(df, "X", numeric_columns=["col1", "col2"])
+    db.load_df(df, "X")
     X_nodes = db.get_nodes("X")
     assert unordered(X_nodes) == [{'name': 'Bob', 'col1': 26, 'col2': 1.1},
                                   {'name': 'Tom'}]
 
-    # Test load df with just nans
+    # Test load df with nans and ignore_nan = False
     df = pd.DataFrame({"name": ["Bob", "Tom"], "col1": [26, None], "col2": [1.1, None]})
-    db.load_df(df, "X", merge=True, primary_key='name')
+    db.load_df(df, "X", merge=True, primary_key='name', ignore_nan=False)
     X_nodes = db.get_nodes("X")
     expected = [{'name': 'Bob', 'col1': 26, 'col2': 1.1},
                 {'name': 'Tom', 'col1': np.nan, 'col2': np.nan}]
