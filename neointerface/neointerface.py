@@ -1390,9 +1390,7 @@ class NeoInterface:
         :param rename:          Optional dictionary to rename the Pandas dataframe's columns to
                                     EXAMPLE {"current_name": "name_we_want"}
         :param ignore_nan       If True node properties created from columns of dtype int64 or float64 will only be set
-                                if they are not NaN.
-                                Note: if merge = True and merge_overwrite = False and primary_key contains NaN then
-                                the node will still be merged with the property value NaN
+                                if they are not NaN.                               
         :param max_chunk_size:  To limit the number of rows loaded at one time
         :return:                List of node ids, created in the operation
         """
