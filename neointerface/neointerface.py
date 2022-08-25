@@ -1391,6 +1391,8 @@ class NeoInterface:
                                     EXAMPLE {"current_name": "name_we_want"}
         :param ignore_nan       If True node properties created from columns of dtype int64 or float64 will only be set
                                 if they are not NaN.
+                                Note: if merge = True and merge_overwrite = False and primary_key contains NaN then
+                                the node will still be merged with the property value NaN
         :param max_chunk_size:  To limit the number of rows loaded at one time
         :return:                List of node ids, created in the operation
         """
@@ -1415,6 +1417,10 @@ class NeoInterface:
             for col, dtype in df.dtypes.iteritems():
                 if dtype in ['float64', 'int64']:
                     numeric_columns.append(col)
+
+        if merge and not merge_overwrite and primary_key in numeric_columns:
+            assert not (df[primary_key].isna().any()), f"Cannot merge node on NULL value in {primary_key}. " \
+            "Use merge_overwrite=True or eliminate missing values"
 
         op = 'MERGE' if (merge and primary_key) else 'CREATE'  # A MERGE or CREATE operation, as needed
         res = []

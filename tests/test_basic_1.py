@@ -1106,6 +1106,13 @@ def test_load_df_numeric_columns(db):
 
     np.testing.assert_equal(X_nodes, expected)
 
+def test_load_df_numeric_columns_merge(db):
+    db.clean_slate()
+    db.debug=True
+    # Test load df with nans and ignore_nan = True
+    df = pd.DataFrame({"name": ["Bob", "Tom"], "col1": [26, None], "col2": [1.1, None]})
+    with pytest.raises(AssertionError):
+        db.load_df(df, "X", merge=True, primary_key='col1')
 
 def test_load_df_datetime(db):
     db.delete_nodes_by_label(delete_labels=["MYTEST"])
