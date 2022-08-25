@@ -1369,7 +1369,7 @@ class NeoInterface:
             primary_key=None,
             merge_overwrite=False,
             rename=None,
-            numeric_columns=None,
+            ignore_nan=True,
             max_chunk_size=10000) -> list:
         """
         Load a Pandas data frame into Neo4j.
@@ -1389,8 +1389,8 @@ class NeoInterface:
                                 will not be deleted)
         :param rename:          Optional dictionary to rename the Pandas dataframe's columns to
                                     EXAMPLE {"current_name": "name_we_want"}
-        :param numeric_columns  Optional list of dtype int64 or float64 column names. When used, node properties created
-                                from these columns will only be set if they are not NaN.
+        :param ignore_nan       If True node properties created from columns of dtype int64 or float64 will only be set
+                                if they are not NaN.
         :param max_chunk_size:  To limit the number of rows loaded at one time
         :return:                List of node ids, created in the operation
         """
@@ -1409,6 +1409,12 @@ class NeoInterface:
                 time.sleep(1)  # sleep to give Neo4j time to populate the index
             primary_key_s = '{' + f'`{primary_key}`:record[\'{primary_key}\']' + '}'
             # EXAMPLE of primary_key_s: "{patient_id:record['patient_id']}"
+
+        numeric_columns = []
+        if ignore_nan:
+            for col, dtype in df.dtypes.iteritems():
+                if dtype in ['float64', 'int64']:
+                    numeric_columns.append(col)
 
         op = 'MERGE' if (merge and primary_key) else 'CREATE'  # A MERGE or CREATE operation, as needed
         res = []
