@@ -1088,6 +1088,25 @@ def test_load_df(db):
                        {'patient_id': 300, 'name': 'Remy'}]
 
 
+def test_load_df_numeric_columns(db):
+    db.clean_slate()
+    # Test load df with nans and numeric columns
+    df = pd.DataFrame({"name": ["Bob", "Tom"], "col1": [26, None], "col2": [1.1, None]})
+    db.load_df(df, "X", numeric_columns=["col1", "col2"])
+    X_nodes = db.get_nodes("X")
+    assert unordered(X_nodes) == [{'name': 'Bob', 'col1': 26, 'col2': 1.1},
+                                  {'name': 'Tom'}]
+
+    # Test load df with just nans
+    df = pd.DataFrame({"name": ["Bob", "Tom"], "col1": [26, None], "col2": [1.1, None]})
+    db.load_df(df, "X", merge=True, primary_key='name')
+    X_nodes = db.get_nodes("X")
+    expected = [{'name': 'Bob', 'col1': 26, 'col2': 1.1},
+                {'name': 'Tom', 'col1': np.nan, 'col2': np.nan}]
+
+    np.testing.assert_equal(X_nodes, expected)
+
+
 def test_load_df_datetime(db):
     db.delete_nodes_by_label(delete_labels=["MYTEST"])
     input_df = pd.DataFrame({
