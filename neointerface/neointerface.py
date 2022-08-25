@@ -1369,6 +1369,7 @@ class NeoInterface:
             primary_key=None,
             merge_overwrite=False,
             rename=None,
+            ignore_nan=True,
             max_chunk_size=10000) -> list:
         """
         Load a Pandas data frame into Neo4j.
@@ -1388,6 +1389,10 @@ class NeoInterface:
                                 will not be deleted)
         :param rename:          Optional dictionary to rename the Pandas dataframe's columns to
                                     EXAMPLE {"current_name": "name_we_want"}
+        :param ignore_nan       If True node properties created from columns of dtype int64 or float64 will only be set
+                                if they are not NaN.
+                                Note: if merge = True and merge_overwrite = False and primary_key contains NaN then
+                                the node will still be merged with the property value NaN
         :param max_chunk_size:  To limit the number of rows loaded at one time
         :return:                List of node ids, created in the operation
         """
@@ -1407,16 +1412,37 @@ class NeoInterface:
             primary_key_s = '{' + f'`{primary_key}`:record[\'{primary_key}\']' + '}'
             # EXAMPLE of primary_key_s: "{patient_id:record['patient_id']}"
 
+        numeric_columns = []
+        if ignore_nan:
+            for col, dtype in df.dtypes.iteritems():
+                if dtype in ['float64', 'int64']:
+                    numeric_columns.append(col)
+
+        if merge and not merge_overwrite and primary_key in numeric_columns:
+            assert not (df[primary_key].isna().any()), f"Cannot merge node on NULL value in {primary_key}. " \
+            "Use merge_overwrite=True or eliminate missing values"
+
         op = 'MERGE' if (merge and primary_key) else 'CREATE'  # A MERGE or CREATE operation, as needed
         res = []
         for df_chunk in np.array_split(df, int(len(df.index) / max_chunk_size) + 1):  # Split the operation into batches
-            cypher = f'''
-            WITH $data AS data 
-            UNWIND data AS record {op} (x:`{label}`{primary_key_s}) 
-            SET x{('' if merge_overwrite else '+')}=record 
-            RETURN id(x) as node_id 
-            '''
-            cypher_dict = {'data': df_chunk.to_dict(orient='records')}
+            if numeric_columns:
+                cypher = f'''
+                WITH $data AS data 
+                UNWIND data AS record 
+                WITH record, [key in $numeric_columns WHERE toString(record[key]) = 'NaN'] as exclude_keys
+                {op} (x:`{label}`{primary_key_s}) 
+                SET x{('' if merge_overwrite else '+')}= apoc.map.removeKeys(record, exclude_keys)
+                RETURN id(x) as node_id 
+                '''
+                cypher_dict = {'data': df_chunk.to_dict(orient='records'), 'numeric_columns': numeric_columns}
+            else:
+                cypher = f'''
+                WITH $data AS data 
+                UNWIND data AS record {op} (x:`{label}`{primary_key_s}) 
+                SET x{('' if merge_overwrite else '+')}=record 
+                RETURN id(x) as node_id 
+                '''
+                cypher_dict = {'data': df_chunk.to_dict(orient='records')}
             if self.debug:
                 print(f"""
                 query: {cypher}
