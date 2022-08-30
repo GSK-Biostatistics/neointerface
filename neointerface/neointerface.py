@@ -2,6 +2,7 @@ from neo4j import GraphDatabase  # The Neo4j python connectivity library "Neo4j 
 from neo4j import __version__ as neo4j_driver_version  # The version of the Neo4j driver being used
 import neo4j.graph  # To check returned data types
 from neo4j.time import DateTime, Date  # to convert neo4j.time.DateTime's to python datetimes (and Dates)
+from neo4j.graph import Node, Relationship, Path
 import numpy as np
 import pandas as pd
 import inspect
@@ -384,10 +385,34 @@ class NeoInterface:
 
     def update_values(self, source, original=None, key_or_index=None):
         """
+        :param source: value to modify
+        :param original: object that the value (source) is contained in. Used to modify all the values of a
+        dict/list/set/etc inplace.
+        :param key_or_index: used to update the value (source) in the dict/list/set/etc it came from (original)
+
         Recursively scan a combination of nested lists and dictionaries and modify values inplace that
         match the following types:
             - neo4j.time.DateTime -> datetime.datetime
             - neo4j.time.Date -> datetime.date
+            - neo4j.graph.Node -> dict
+                {
+                    'id': id,
+                    'labels': {set of labels},
+                    'properties': {dict of properties}
+                }
+            - neo4j.graph.Relationship -> dict
+                {
+                    'id': id,
+                    'start_node': {node as dict above},
+                    'end_node': {node as dict above},
+                    'type': 'type of relationship'
+                }
+            - neo4j.graph.Path -> dict
+                {
+                    'start_node': {node as dict above},
+                    'nodes': (tuple of nodes as dict above),
+                    'relationships': (tuple of relationships as dict above)
+                }
         """
         if isinstance(source, dict):
             for k, v in source.items():
@@ -395,8 +420,39 @@ class NeoInterface:
         elif isinstance(source, (list, set)):
             for i, v in enumerate(source):
                 self.update_values(v, original=source, key_or_index=i)
+        elif isinstance(source, tuple):
+            # required to create new tuple with modified items
+            source = list(source)
+            self.update_values(source)
+            new_value = tuple(source)
+            original[key_or_index] = new_value
         elif isinstance(source, (DateTime, Date)):
             new_value = source.to_native()
+            original[key_or_index] = new_value
+        elif isinstance(source, Node):
+            new_value = {
+                'id': source.id,
+                'labels': source.labels,
+                'properties': {key: value for key, value in source.items()}
+            }
+            original[key_or_index] = new_value
+        elif isinstance(source, Relationship):
+            new_value = {
+                'id': source.id,
+                'start_node': source.start_node,
+                'end_node': source.end_node,
+                'type': source.type,
+                'properties': {key: value for key, value in source.items()}
+            }
+            self.update_values(new_value)
+            original[key_or_index] = new_value
+        elif isinstance(source, Path):
+            new_value = {
+                'start_node': source.start_node,
+                'nodes': source.nodes,
+                'relationships': source.relationships
+            }
+            self.update_values(new_value)
             original[key_or_index] = new_value
 
     ##################################################################################################

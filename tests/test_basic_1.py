@@ -8,6 +8,7 @@ import neo4j
 from networkx import MultiDiGraph
 from datetime import datetime, date
 from neo4j.time import DateTime, Date
+from neo4j.graph import Graph, Node, Relationship, Path
 
 
 # Provide a database connection that can be used by the various tests that need it
@@ -615,7 +616,6 @@ def test_query_nx(db):
 
 
 def test_update_values(db):
-    db.clean_slate()
     # input containing neo4j.time.Datetime and neo4j.time.Date objects
     _input = [
         {
@@ -624,7 +624,7 @@ def test_update_values(db):
             3: [date(2022, 8, 8)]
         },
         {'test_string_b': Date(year=2022, month=10, day=25), 4: '2018-04-05T12:34:00'},
-        {},
+        (),
         [np.NaN, pd.NaT, None]
     ]
     # expected output that contains python datetime and date objects instead of neo4j datetime and date objects
@@ -635,9 +635,95 @@ def test_update_values(db):
             3: [date(2022, 8, 8)]
         },
         {'test_string_b': date(2022, 10, 25), 4: '2018-04-05T12:34:00'},
-        {},
+        (),
         [np.nan, pd.NaT, None]
     ]
+    db.update_values(source=_input)
+    assert len(_input) == len(expected)
+    assert all(i in expected for i in _input)
+
+    # input containing neo4j Node, Relationship objects
+    graph = Graph()
+    node1 = Node(
+        graph=graph, n_id=1, n_labels=['Test Label 1', 'Test Label 2'],
+        properties={'prop1': 123, 'prop2': 'abc', 'prop3': [123, 'abc'], 'prop4': {123: 'abc'}}
+    )
+    expected_node1 = {
+        'id': 1,
+        'labels': {'Test Label 1', 'Test Label 2'},
+        'properties': {
+            'prop1': 123,
+            'prop2': 'abc',
+            'prop3': [123, 'abc'],
+            'prop4': {123: 'abc'}
+        }
+    }
+    node2 = Node(
+        graph=graph, n_id=2, n_labels=['Test Label 1'],
+        properties={'prop1': 456}
+    )
+    expected_node2 = {
+        'id': 2,
+        'labels': {'Test Label 1'},
+        'properties': {
+            'prop1': 456,
+        }
+    }
+    node3 = Node(
+        graph=graph, n_id=3, n_labels=['Test Label 1'],
+        properties={'prop1': 456}
+    )
+    expected_node3 = {
+        'id': 3,
+        'labels': {'Test Label 3'},
+        'properties': {
+            'prop1': [456, '456'],
+        }
+    }
+    rel1 = Relationship(
+        graph=graph, r_id=1, properties={'prop1': 123, 'prop2': 'abc', 'prop3': [123, 'abc'], 'prop4': {123: 'abc'}}
+    )
+    rel1._start_node = node1
+    rel1._end_node = node2
+    type(rel1).__name__ = 'Test Type'
+    expected_rel1 = {
+        'id': 1,
+        'start_node': expected_node1,
+        'end_node': expected_node2,
+        'type': 'Test Type',
+        'properties': {'prop1': 123, 'prop2': 'abc', 'prop3': [123, 'abc'], 'prop4': {123: 'abc'}}
+    }
+    rel2 = Relationship(
+        graph=graph, r_id=2, properties={'prop1': 123, 'prop2': 'abc', 'prop3': [123, 'abc'], 'prop4': {123: 'abc'}}
+    )
+    rel2._start_node = node2
+    rel2._end_node = node3
+    type(rel2).__name__ = 'Test Type 2'
+    expected_rel2 = {
+        'id': 2,
+        'start_node': expected_node2,
+        'end_node': expected_node3,
+        'type': 'Test Type',
+        'properties': {'prop1': 456}
+    }
+    path = Path(node1, rel1, rel2)
+    expected_path = {
+        'start_node': expected_node1,
+        'nodes': (expected_node1, expected_node2, expected_node3),
+        'relationships': (expected_rel1, expected_rel2)
+    }
+
+    _input = {
+        'node_lst': [node1, node2, node3],
+        'rel_dct': {'rel1': rel1, 'rel2': rel2},
+        'path': path
+    }
+    # expected output that contains python datetime and date objects instead of neo4j datetime and date objects
+    expected = {
+        'node_lst': [expected_node1, expected_node2, expected_node3],
+        'rel_dct': {'rel1': expected_rel1, 'rel2': expected_rel2},
+        'path': expected_path
+    }
     db.update_values(source=_input)
     assert len(_input) == len(expected)
     assert all(i in expected for i in _input)
