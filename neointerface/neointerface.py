@@ -10,6 +10,7 @@ import requests
 import re
 import json
 import time
+import collections
 from urllib.parse import quote
 from typing import Union
 from warnings import warn
@@ -197,6 +198,7 @@ class NeoInterface:
         Returns result of the query as a networkx graph
         (See https://networkx.org/documentation/stable/reference/classes/multidigraph.html)
         """
+
         assert return_type in ['data', 'neo4j.Result', 'pd', 'nx']
         # Start a new session, use it, and then immediately close it
         with self.driver.session() as new_session:
@@ -219,13 +221,13 @@ class NeoInterface:
                 result_data = result.data()
                 if convert_dates:
                     self.update_values(source=result_data)
-                result_1dict = []  # best-guess-merging all the results into 1 dict
+                flattened_dictionaries = []
                 for r in result_data:
-                    dct = {}
-                    for k, i in r.items():
-                        dct = {**dct, **(i if isinstance(i, dict) else {k: i})}
-                    result_1dict.append(dct)
-                return pd.DataFrame(result_1dict)
+                    if 'map' in r:
+                        # usually return a dict with the label 'map' in a cypher query. Remove that extra level here
+                        r = r['map']
+                    flattened_dictionaries.append(self.flatten(r))  # pd.json_normalise() might be a better choice
+                return pd.DataFrame(flattened_dictionaries)
             elif return_type == 'nx':
                 return self.nx_graph_from_cypher(result)
 
@@ -398,6 +400,27 @@ class NeoInterface:
         elif isinstance(source, (DateTime, Date)):
             new_value = source.to_native()
             original[key_or_index] = new_value
+
+    def flatten(self, dictionary: collections.MutableMapping, parent_key: str = False, separator: str = '.'):
+        """
+        Recursively scan a combination of nested lists and dictionaries and return a flattened dictionary.
+        :param dictionary: The dictionary to flatten
+        :param parent_key: The string to prepend to dictionary's keys
+        :param separator: The string used to separate flattened keys
+        :return: A flattened dictionary
+        """
+
+        items = []
+        for key, value in dictionary.items():
+            new_key = str(parent_key) + separator + key if parent_key else key
+            if isinstance(value, collections.MutableMapping):
+                items.extend(self.flatten(value, new_key, separator).items())
+            elif isinstance(value, list):
+                for k, v in enumerate(value):
+                    items.extend(self.flatten({str(k): v}, new_key).items())
+            else:
+                items.append((new_key, value))
+        return dict(items)
 
     ##################################################################################################
     #                                                                                                #
