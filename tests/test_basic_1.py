@@ -585,6 +585,7 @@ def test_load_query_datetimes(db):
     result_df = db.query("MATCH (x:MYTEST) return x.dtm as dtm, x.dt as dt", return_type="pd")
     assert expected_df.equals(result_df)
 
+
 def test_query_neo4jResult(db):
     result = db.query("RETURN 1", return_type="neo4j.Result")
     assert isinstance(result, neo4j.Result)
@@ -615,7 +616,6 @@ def test_query_nx(db):
 
 
 def test_update_values(db):
-    db.clean_slate()
     # input containing neo4j.time.Datetime and neo4j.time.Date objects
     _input = [
         {
@@ -642,6 +642,15 @@ def test_update_values(db):
     assert len(_input) == len(expected)
     assert all(i in expected for i in _input)
 
+
+def test_flatten(db):
+    _input1 = {'A': [1, 2, 3], 'B': {'Z': 'abc', 'Y': 123}}
+    res1 = db.flatten(_input1)
+    assert res1 == {'A.0': 1, 'A.1': 2, 'A.2': 3, 'B.Z': 'abc', 'B.Y': 123}
+
+    _input2 = {'map': {'C': {'X': 'jkl', 'W': datetime(2022, 10, 25)}, 1: None, 2: True}}
+    res2 = db.flatten(_input2)
+    assert res2 == {'map.C.X': 'jkl', 'map.C.W': datetime(2022, 10, 25), 'map.1': None, 'map.2': True}
 
 # def test_query_expanded(db):
 #     db.clean_slate()
