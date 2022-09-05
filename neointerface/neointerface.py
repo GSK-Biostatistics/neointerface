@@ -412,7 +412,7 @@ class NeoInterface:
 
         items = []
         for key, value in dictionary.items():
-            new_key = str(parent_key) + separator + key if parent_key else key
+            new_key = str(parent_key) + separator + str(key) if parent_key else key
             if isinstance(value, collections.MutableMapping):
                 items.extend(self.flatten(value, new_key, separator).items())
             elif isinstance(value, list):
