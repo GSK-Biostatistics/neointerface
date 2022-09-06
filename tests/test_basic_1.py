@@ -595,7 +595,7 @@ def test_query_pd(db):
     result = db.query("UNWIND [{`key 1`: 1, `key 2`: 2}, {`key 1`: 3, `key 2`: 4}] as map RETURN map",
                       return_type="pd")
     assert isinstance(result, pd.DataFrame)
-    pd.testing.assert_frame_equal(result, pd.DataFrame([{'key 1': 1, 'key 2': 2}, {'key 1': 3, 'key 2': 4}]),
+    pd.testing.assert_frame_equal(result, pd.DataFrame([{'map.key 1': 1, 'map.key 2': 2}, {'map.key 1': 3, 'map.key 2': 4}]),
                                   check_like=True)
 
 
