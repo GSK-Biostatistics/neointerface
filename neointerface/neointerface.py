@@ -223,9 +223,6 @@ class NeoInterface:
                     self.update_values(source=result_data)
                 flattened_dictionaries = []
                 for r in result_data:
-                    if 'map' in r:
-                        # usually return a dict with the label 'map' in a cypher query. Remove that extra level here
-                        r = r['map']
                     flattened_dictionaries.append(self.flatten(r))  # pd.json_normalise() might be a better choice
                 return pd.DataFrame(flattened_dictionaries)
             elif return_type == 'nx':
