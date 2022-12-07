@@ -46,28 +46,29 @@ class tab_link_entities(pn.Column):
         )
 
     def link_entities_on_changed_any_class(self, event):  
+        self.link_entities_status.value = False
         self.link_entities_condition[2] = f"## {self.link_entities_left_class.value}"
         self.link_entities_condition[-2] = f"## {self.link_entities_right_class.value}"
         if self.link_entities_left_class.value and self.link_entities_right_class.value:
-            res = self.interface.query(f"""
-            MATCH path=(left)-[r1]->(via)<-[r2]-(right)    
-            WHERE left:`{self.link_entities_left_class.value}` and right:`{self.link_entities_right_class.value}`
-                AND left <> right            
-            WITH DISTINCT type(r1) as r1, labels(via) as lbls, type(r2) as r2, count(path) as cnt 
-            ORDER BY cnt DESC
-            UNWIND lbls as lbl
-            RETURN DISTINCT r1, lbl, r2
-            """,
-            {
-                "left_label": self.link_entities_left_class.value,
-                "right_label": self.link_entities_right_class.value
-            }
+            with open("ui/cypher/get_link_entities_rels.cypher", "r") as f:
+                q = f.read()
+            res = self.interface.query(
+                q
+                ,
+                {
+                    "left_label": self.link_entities_left_class.value,
+                    "right_label": self.link_entities_right_class.value
+                }
             )
             if res:
                 res_df = pd.DataFrame(res)
                 self.link_entities_cond_left_rel.options = list(f"{x}>" for x in set(res_df['r1']))
                 self.link_entities_cond_via_node.options = list(set(res_df['lbl']))
                 self.link_entities_cond_right_rel.options = list(f"<{x}" for x in set(res_df['r2']))
+            else:
+                self.link_entities_cond_left_rel.options = []
+                self.link_entities_cond_via_node.options = []
+                self.link_entities_cond_right_rel.options = []
 
     def link_entities_on_button_clicked(self, event):
         self.link_entities_status.value = False    

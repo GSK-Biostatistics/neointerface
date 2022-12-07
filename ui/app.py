@@ -25,21 +25,17 @@ tabs = pn.Tabs(
 #on tab extract_entities activated
 def tabs_on_extract_entities_activated(event):
     if event.obj.active == 2:
-        w_tab_extract_entities.extract_entities_from_class.options = [r["label"] for r in neo.query(
-            """
-            call db.labels() yield label return label order by label            
-            """
-        )]
+        with open("ui/cypher/get_labels.cypher", "r") as f:
+            q = f.read()
+        w_tab_extract_entities.extract_entities_from_class.options = [r["label"] for r in neo.query(q)]
 watcher_extract_entities_activated = tabs.param.watch(tabs_on_extract_entities_activated, "active")
 
 #on tab link_entities activated
 def tabs_on_link_entities_activated(event):
     if event.obj.active == 3:
-        w_tab_link_entities.link_entities_left_class.options = [r["label"] for r in neo.query(
-            """
-            call db.labels() yield label return label order by label            
-            """
-        )]
+        with open("ui/cypher/get_labels.cypher", "r") as f:
+            q = f.read()
+        w_tab_link_entities.link_entities_left_class.options = [r["label"] for r in neo.query(q)]
         w_tab_link_entities.link_entities_right_class.options = w_tab_link_entities.link_entities_left_class.options
 watcher_link_entities_activated = tabs.param.watch(tabs_on_link_entities_activated, "active")
 

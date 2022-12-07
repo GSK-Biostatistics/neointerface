@@ -31,13 +31,10 @@ class tab_extract_entities(pn.Column):
         )
 
     def extract_entities_on_updated_from_class(self, event):
+        with open("ui/cypher/get_nodeType_properties_by_label.cypher", "r") as f:
+            q = f.read()
         res = self.interface.query(
-            """
-            call db.schema.nodeTypeProperties() yield nodeLabels, propertyName
-            WHERE $label in nodeLabels
-            WITH distinct propertyName
-            RETURN propertyName order by propertyName
-            """,
+            q,
             {"label": event.obj.value}
         )
         self.extract_entities_from_prop.options = [r["propertyName"] for r in res]
@@ -45,6 +42,7 @@ class tab_extract_entities(pn.Column):
     def extract_entities_on_updated_from_property(self, event):        
         if event.obj.value:
             self.extract_entities_to_class.value = event.obj.value[0]
+            self.extract_entities_status.value = False
         
     def extract_entities_on_button_clicked(self, event):
         self.extract_entities_status.value = False    
