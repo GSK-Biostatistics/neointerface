@@ -148,3 +148,5 @@ test.py
 import_sdtm_rdf.py
 
 *__init__.cpython*
+
+.vscode/*
