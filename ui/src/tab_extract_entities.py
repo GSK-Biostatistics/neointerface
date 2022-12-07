@@ -17,6 +17,8 @@ class tab_extract_entities(pn.Column):
 
         self.watcher_extract_entities_from_class = self.extract_entities_from_class.param.watch(
             self.extract_entities_on_updated_from_class, "value")
+        self.watcher_extract_entities_from_prop = self.extract_entities_from_prop.param.watch(
+            self.extract_entities_on_updated_from_property, "value")
 
         super().__init__(
             pn.Row(self.extract_entities_from_class, self.extract_entities_from_prop),
@@ -39,6 +41,10 @@ class tab_extract_entities(pn.Column):
             {"label": event.obj.value}
         )
         self.extract_entities_from_prop.options = [r["propertyName"] for r in res]
+
+    def extract_entities_on_updated_from_property(self, event):        
+        if event.obj.value:
+            self.extract_entities_to_class.value = event.obj.value[0]
         
     def extract_entities_on_button_clicked(self, event):
         self.extract_entities_status.value = False    

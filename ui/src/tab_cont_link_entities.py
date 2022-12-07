@@ -1,5 +1,6 @@
 from neointerface import NeoInterface
 import panel as pn 
+import pandas as pd
 
 class tab_link_entities(pn.Column):
     def __init__(self, interface:NeoInterface) -> None:

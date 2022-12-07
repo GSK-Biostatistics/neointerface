@@ -10,17 +10,22 @@ import json
 
 neo = NeoInterface()
 
+w_tab_clear_db = tab_clear_db(neo)
+w_tab_data_load = tab_data_load(neo)
+w_tab_extract_entities = tab_extract_entities(neo)
+w_tab_link_entities = tab_link_entities(neo)
+
 tabs = pn.Tabs(
-    ('Clear Database', tab_clear_db(neo)), 
-    ('Data Load', tab_data_load(neo)), 
-    ('Extract Nodes', tab_extract_entities(neo)),
-    ('Link Nodes', tab_link_entities(neo))
+    ('Clear Database', w_tab_clear_db), 
+    ('Data Load', w_tab_data_load), 
+    ('Extract Nodes', w_tab_extract_entities),
+    ('Link Nodes', w_tab_link_entities)
 )
 
 #on tab extract_entities activated
 def tabs_on_extract_entities_activated(event):
     if event.obj.active == 2:
-        extract_entities_from_class.options = [r["label"] for r in neo.query(
+        w_tab_extract_entities.extract_entities_from_class.options = [r["label"] for r in neo.query(
             """
             call db.labels() yield label return label order by label            
             """
@@ -30,12 +35,12 @@ watcher_extract_entities_activated = tabs.param.watch(tabs_on_extract_entities_a
 #on tab link_entities activated
 def tabs_on_link_entities_activated(event):
     if event.obj.active == 3:
-        link_entities_left_class.options = [r["label"] for r in neo.query(
+        w_tab_link_entities.link_entities_left_class.options = [r["label"] for r in neo.query(
             """
             call db.labels() yield label return label order by label            
             """
         )]
-        link_entities_right_class.options = link_entities_left_class.options
+        w_tab_link_entities.link_entities_right_class.options = w_tab_link_entities.link_entities_left_class.options
 watcher_link_entities_activated = tabs.param.watch(tabs_on_link_entities_activated, "active")
 
 pn.extension()
