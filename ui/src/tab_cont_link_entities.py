@@ -62,9 +62,13 @@ class tab_link_entities(pn.Column):
             )
             if res:
                 res_df = pd.DataFrame(res)
-                self.link_entities_cond_left_rel.options = list(f"{x}>" for x in set(res_df['r1']))
-                self.link_entities_cond_via_node.options = list(set(res_df['lbl']))
-                self.link_entities_cond_right_rel.options = list(f"<{x}" for x in set(res_df['r2']))
+                rel_opts = {}
+                for r in ['r1', 'r2']:
+                    rel_opts[r] = list(set(res_df[[r, r + '_dir']].apply( \
+                        lambda row: row[r] + row[r + '_dir'] if row[r + '_dir'] == '>' else row[r + '_dir'] + row[r], axis = 1)))                
+                self.link_entities_cond_left_rel.options = rel_opts['r1']
+                self.link_entities_cond_via_node.options = list(set(res_df['lbl']))                
+                self.link_entities_cond_right_rel.options = rel_opts['r2']
             else:
                 self.link_entities_cond_left_rel.options = []
                 self.link_entities_cond_via_node.options = []

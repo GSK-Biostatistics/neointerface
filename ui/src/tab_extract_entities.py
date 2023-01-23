@@ -10,8 +10,8 @@ class tab_extract_entities(pn.Column):
         self.extract_entities_to_class = pn.widgets.TextInput(name='To Class')
         self.extract_entities_to_prop = pn.widgets.TextInput(name='Rename Properties', value = str({"source": "target"}))
         self.extract_entities_button_extract = pn.widgets.Button(name='Extract', button_type='primary')
-        self.extract_entities_rel_type = pn.widgets.TextInput(name='Relationship type', value='FROM')
-        self.extract_entities_rel_dir = pn.widgets.TextInput(name='Relationship direction', value='<')
+        self.extract_entities_rel_type = pn.widgets.TextInput(name='Relationship type', value='FROM')        
+        self.extract_entities_rel_dir = pn.widgets.Select(name='Relationship direction', options=['<', '>'], value='<')
         self.extract_entities_button_extract.on_click(self.extract_entities_on_button_clicked)
         self.extract_entities_status = pn.indicators.BooleanStatus(value=False, color='success')
 
@@ -58,7 +58,7 @@ class tab_extract_entities(pn.Column):
                 label=self.extract_entities_from_class.value,
                 target_label=self.extract_entities_to_class.value,            
                 property_mapping=property_mapping,
-                relationship="FROM_DATA",
-                direction='<',
+                relationship=self.extract_entities_rel_type.value,
+                direction=self.extract_entities_rel_dir.value,
             )
             self.extract_entities_status.value = True    
