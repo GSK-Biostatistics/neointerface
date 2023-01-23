@@ -12,7 +12,7 @@ class **NeoInterface**:
     for a variety of common operations, class methods may be used instead of Cypher queries.
     Advanced users can pass Cypher directly.
  
-IMPORTANT NOTE: tested on **version 4.3.6 of Neo4j**
+IMPORTANT NOTE: tested on **versions 4.3.6 and 4.4.11 of Neo4j**
 
 **AUTHORS:**
         Alexey Kuznetsov, Julian West, GlaxoSmithKline
