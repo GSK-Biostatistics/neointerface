@@ -333,8 +333,8 @@ class NeoInterface:
     def nx_graph_from_cypher(data):
         """Constructs a networkx graph from the results of a neo4j cypher query.
         Example of use:
-        >>> result = session.run(query)
-        >>> G = nx_graph_from_cypher(result.data())
+        / >>> result = session.run(query)
+        / >>> G = nx_graph_from_cypher(result.data())
 
         Nodes have fields 'labels' (frozenset) and 'properties' (dicts). Node IDs correspond to the neo4j graph.
         Edges have fields 'type_' (string) denoting the type of relation, and 'properties' (dict)."""
@@ -436,6 +436,10 @@ class NeoInterface:
                         will RETURN a list of prices of all the Toyota models that cost less than 50000
 
         :param field_name:  A string with the name of the desired field (attribute)
+        :param labels: see get_nodes()
+        :param properties_condition: get_nodes()
+        :param cypher_clause: see get_nodes()
+        :param cypher_dict:  see get_nodes()
 
         For more information on the other parameters, see get_nodes()
 
@@ -623,7 +627,7 @@ class NeoInterface:
         if (cypher_clause != "") and (cypher_clause is not None):
             cypher += f" WHERE {cypher_clause}"
 
-        return (cypher, cypher_dict)
+        return cypher, cypher_dict
 
     def _prepare_labels(self, labels) -> str:
         """
@@ -990,6 +994,7 @@ class NeoInterface:
         :param delete_labels:   An optional string, or list of strings, indicating specific labels to DELETE
         :param keep_labels:     An optional string or list of strings, indicating specific labels to KEEP
                                     (keep_labels has higher priority over delete_labels)
+        :param batch_size:      Number of operations to run in a single neo4j transaction.
         :return:                None
         """
         if (delete_labels is None) and (keep_labels is None):
@@ -1110,7 +1115,7 @@ class NeoInterface:
                          cypher=None,
                          cypher_dict=None,
                          target_label=None,
-                         property_mapping={},
+                         property_mapping=None,
                          relationship=None,
                          direction='<'
                          ):
@@ -1136,6 +1141,9 @@ class NeoInterface:
         :param direction: direction of the relationship to create (>: to the extraction node, <: from the extraction node)
         :return: None
         """
+        if property_mapping is None:
+            property_mapping = {}
+
         assert mode in ['merge', 'create']
         assert direction in ['>', '<']
         assert type(property_mapping) in [dict, list]
@@ -1436,7 +1444,7 @@ class NeoInterface:
 
         if merge and not merge_overwrite and primary_key in numeric_columns:
             assert not (df[primary_key].isna().any()), f"Cannot merge node on NULL value in {primary_key}. " \
-            "Use merge_overwrite=True or eliminate missing values"
+             "Use merge_overwrite=True or eliminate missing values"
 
         op = 'MERGE' if (merge and primary_key) else 'CREATE'  # A MERGE or CREATE operation, as needed
         res = []
@@ -1555,6 +1563,9 @@ class NeoInterface:
         :param dct: python dict to load
         :param merge_on: None or dict with label as key and list of properties as value - the properties will be used
         as identProps in apoc.merge.node, the rest of the properties will be used as onCreateProps and onMatchProps
+        :param always_create: Optional list of labels to be CREATED rather than MERGED
+        :param timestamp: Bool, if true includes an additional "_timestamp" property on node CREATION or MERGE equal to
+                          cypher timestamp()
         :return: result of the corresponding Neo4j query
         """
         assert merge_on is None or isinstance(merge_on, dict)
@@ -1687,7 +1698,7 @@ class NeoInterface:
                                 the pair returned is ("", {})
         """
         if data_dict is None or data_dict == {}:
-            return ("", {})
+            return "", {}
 
         rel_props_list = []  # A list of strings
         data_dictionary = {}
@@ -1704,7 +1715,7 @@ class NeoInterface:
 
         rel_props_str = "{" + rel_props_str + "}"
 
-        return (rel_props_str, data_dictionary)
+        return rel_props_str, data_dictionary
 
     ############################################################################################
     #                                                                                          #
@@ -1901,10 +1912,10 @@ class NeoInterface:
     ############################################################################################
 
     def rdf_generate_uri(self,
-                         dct={},
+                         dct=None,
                          include_label_in_uri=True,
                          prefix='neo4j://graph.schema#',
-                         add_prefixes=[],
+                         add_prefixes=None,
                          sep='/',
                          uri_prop='uri') -> None:
         """
@@ -1946,8 +1957,15 @@ class NeoInterface:
         :param prefix: a prefix for uri
         :param add_prefixes: list of prefixes to prepend uri with (after prefix), list joined with :sep separator
         :param sep: separator for joining add_perfixes and the primary keys into uri
+        :param include_label_in_uri: Bool includes label in URI as the first element after prefix
+        :param uri_prop: string URI property name, defaults to 'uri'
         :return: None
         """
+        if dct is None:
+            dct = {}
+        if add_prefixes is None:
+            add_prefixes = []
+
         for label, config in dct.items():
             assert isinstance(label, str)
             assert any(isinstance(config, t) for t in [list, str, dict])
@@ -2031,7 +2049,7 @@ class NeoInterface:
             self.query(cypher, cypher_dict)
             self._rdf_uri_cleanup()
 
-    def rdf_get_subgraph(self, cypher: str, cypher_dict={}, format="Turtle-star") -> str:
+    def rdf_get_subgraph(self, cypher: str, cypher_dict=None, format="Turtle-star") -> str:
         """
         A method that returns an RDF serialization of a subgraph specified by :cypher query
         :param cypher: cypher query to return a subgraph
@@ -2039,6 +2057,9 @@ class NeoInterface:
         :param format: RDF format in which to serialize output
         :return: str - RDF serialization of subgraph
         """
+        if cypher_dict is None:
+            cypher_dict = {}
+
         self._rdf_subgraph_cleanup()
         url = self.rdf_host + "neo4j/cypher"
         j = ({'cypher': cypher, 'format': format, 'cypherParams': cypher_dict})
