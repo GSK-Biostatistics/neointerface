@@ -4,8 +4,10 @@ import os
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+
 def read_text(file_name: str):
     return open(os.path.join(file_name)).read()
+
 
 with open('requirements.txt') as f:
     requirements = f.read().splitlines()

@@ -3,7 +3,7 @@ import pandas as pd
 
 
 # ************  IMPORTANT: change the credentials as needed!  ************
-db = neointerface.NeoInterface(host="neo4j://localhost:7687" , credentials=("neo4j", "YOUR_NEO4J_PASSWORD"))
+db = neointerface.NeoInterface(host="neo4j://localhost:7687", credentials=("neo4j", "YOUR_NEO4J_PASSWORD"))
 
 # Create 2 new nodes (records).  The internal Neo4j node ID is returned
 node1_id = db.create_node_by_label_and_dict("patient", {'patient_id': 123, 'gender': 'M'})

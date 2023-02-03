@@ -154,7 +154,7 @@ class NeoInterface:
     ############################################################################################
 
     def query(self, q: str, params=None, return_type: str = 'data', convert_dates: bool = True) -> Union[
-        list, neo4j.Result, pd.DataFrame, MultiDiGraph]:
+              list, neo4j.Result, pd.DataFrame, MultiDiGraph]:
         """
         Runs a general Cypher query
         :param q:       A Cypher query
@@ -1054,7 +1054,7 @@ class NeoInterface:
         """
         if drop_indexes:
             self.drop_all_indexes(including_constraints=drop_constraints)
-            #TODO: check if self.rdf the dropped constraint fon Resource.uri does not cause trouble
+            # TODO: check if self.rdf the dropped constraint fon Resource.uri does not cause trouble
 
         if self.rdf:
             self.delete_nodes_by_label(
