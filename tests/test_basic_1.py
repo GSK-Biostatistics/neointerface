@@ -828,7 +828,7 @@ def test_create_index(db):
     db.clean_slate()
 
     status = db.create_index("car", "color")
-    assert status == True
+    assert status is True
 
     result = db.get_indexes()
     assert len(result) == 1
@@ -839,10 +839,10 @@ def test_create_index(db):
     assert result.iloc[0]["uniqueness"] == "NONUNIQUE"
 
     status = db.create_index("car", "color")  # Attempt to create again same index
-    assert status == False
+    assert status is False
 
     status = db.create_index("car", "make")
-    assert status == True
+    assert status is True
 
     result = db.get_indexes()
     assert len(result) == 2
@@ -865,12 +865,12 @@ def test_drop_index(db):
     assert len(index_df) == 4
 
     status = db.drop_index("car.make")
-    assert status == True
+    assert status is True
     index_df = db.get_indexes()
     assert len(index_df) == 3
 
     status = db.drop_index("car.make")  # Attempt to take out an index that is not present
-    assert status == False
+    assert status is False
     index_df = db.get_indexes()
     assert len(index_df) == 3
 
@@ -895,7 +895,7 @@ def test_create_constraint(db):
     db.clean_slate()
 
     status = db.create_constraint("patient", "patient_id", name="my_first_constraint")
-    assert status == True
+    assert status is True
 
     result = db.get_constraints()
     assert len(result) == 1
@@ -904,7 +904,7 @@ def test_create_constraint(db):
     assert result.iloc[0]["name"] == "my_first_constraint"
 
     status = db.create_constraint("car", "registration_number")
-    assert status == True
+    assert status is True
 
     result = db.get_constraints()
     assert len(result) == 2
@@ -916,7 +916,7 @@ def test_create_constraint(db):
 
     status = db.create_constraint("car",
                                   "registration_number")  # Attempt to create a constraint that already was in place
-    assert status == False
+    assert status is False
     result = db.get_constraints()
     assert len(result) == 2
 
@@ -924,7 +924,7 @@ def test_create_constraint(db):
 
     status = db.create_constraint("car",
                                   "parking_spot")  # Attempt to create a constraint for which there was already an index
-    assert status == False
+    assert status is False
     result = db.get_constraints()
     assert len(result) == 2
 
@@ -960,18 +960,18 @@ def test_drop_constraint(db):
     assert len(result) == 2
 
     status = db.drop_constraint("constraint1")
-    assert status == True
+    assert status is True
     result = db.get_constraints()
     assert len(result) == 1
 
     status = db.drop_constraint("constraint1")  # Attempt to remove a constraint that doesn't exist
-    assert status == False
+    assert status is False
     result = db.get_constraints()
     assert len(result) == 1
 
     status = db.drop_constraint(
         "client.client_id.UNIQUE")  # Using the name automatically assigned by create_constraint()
-    assert status == True
+    assert status is True
     result = db.get_constraints()
     assert len(result) == 0
 
@@ -1119,7 +1119,7 @@ def test_load_df_numeric_columns(db):
 
 def test_load_df_numeric_columns_merge(db):
     db.clean_slate()
-    db.debug=True
+    db.debug = True
     # Test load df with nans and ignore_nan = True
     df = pd.DataFrame({"name": ["Bob", "Tom"], "col1": [26, None], "col2": [1.1, None]})
     with pytest.raises(AssertionError):
