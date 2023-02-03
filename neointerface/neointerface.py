@@ -123,7 +123,7 @@ class NeoInterface:
             self.rdf_host = os.environ.get("NEO4J_RDF_HOST")
         if not self.rdf_host:
             bolt_port = re.findall(r'\:\d+', self.host)[0]
-            self.rdf_host = self.host.replace(bolt_port, ":7474").replace("bolt", "http").replace("neoj", "http")
+            self.rdf_host = self.host.replace(bolt_port, ":7474").replace("bolt", "http").replace("neo4j", "http")
             self.rdf_host += ("" if self.rdf_host.endswith("/") else "/") + "rdf/"
         try:
             get_response = json.loads(requests.get(f"{self.rdf_host}ping", auth=self.credentials).text)
