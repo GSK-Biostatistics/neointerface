@@ -4,14 +4,12 @@ import neo4j.graph  # To check returned data types
 from neo4j.time import DateTime, Date  # to convert neo4j.time.DateTime's to python datetimes (and Dates)
 import numpy as np
 import pandas as pd
-import inspect
 import os
 import requests
 import re
 import json
 import time
 import collections
-from urllib.parse import quote
 from typing import Union
 from warnings import warn
 from networkx import MultiDiGraph
