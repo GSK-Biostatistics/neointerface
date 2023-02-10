@@ -67,8 +67,6 @@ class NeoInterface:
         :param autoconnect  Flag indicating whether the class should establish connection to database at initialization
         """
         self.verbose = verbose
-        if debug:
-            logger.setLevel(logging.DEBUG)
         self.autoconnect = autoconnect
         self.host = host
         self.credentials = credentials
@@ -77,6 +75,10 @@ class NeoInterface:
         self.rdf_host = rdf_host
         if self.verbose:
             logger.info("\t\tInitializing NeoInterface")
+            if debug:
+                logging.getLogger('neointerface').setLevel(logging.DEBUG)
+            else:
+                logging.getLogger('neointerface').setLevel(logging.INFO)
         if self.autoconnect:  # TODO: add test for autoconnect == False
             # Attempt to create a driver object
             self.connect()
