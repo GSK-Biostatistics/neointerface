@@ -17,7 +17,7 @@ from typing import Union
 from warnings import warn
 from networkx import MultiDiGraph
 from neo4j.graph import Node, Relationship, Path
-from logger import logger
+from logger.logger import logger
 
 
 class NeoInterface:
