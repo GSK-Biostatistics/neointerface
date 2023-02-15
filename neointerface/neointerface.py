@@ -10,7 +10,7 @@ import re
 import json
 import time
 import collections
-from typing import Union
+from typing import Union, List
 from warnings import warn
 from networkx import MultiDiGraph
 from neo4j.graph import Node, Relationship, Path
@@ -226,7 +226,7 @@ class NeoInterface:
             elif return_type == 'nx':
                 return self.nx_graph_from_cypher(result)
 
-    def query_expanded(self, q: str, params=None, flatten=False) -> []:
+    def query_expanded(self, q: str, params=None, flatten=False) -> list:
         """
         Expanded version of query(), meant to extract additional info for queries that return Graph Data Types,
         i.e. nodes, relationships or paths,
@@ -453,7 +453,7 @@ class NeoInterface:
         return single_field_list
 
     def get_nodes(self, labels="", properties_condition=None, cypher_clause=None, cypher_dict=None,
-                  return_nodeid=False, return_labels=False) -> [{}]:
+                  return_nodeid=False, return_labels=False) -> List[dict]:
         """
         EXAMPLES:
             get_nodes("")       # Get ALL nodes
@@ -655,7 +655,7 @@ class NeoInterface:
 
         return cypher_labels
 
-    def get_parents_and_children(self, node_id: int) -> {}:
+    def get_parents_and_children(self, node_id: int) -> dict:
         """
         Fetch all the nodes connected to the given one by INbound relationships to it (its "parents"),
         as well as by OUTbound relationships to it (its "children")
@@ -699,7 +699,7 @@ class NeoInterface:
 
         return {'parent_list': parent_list, 'child_list': child_list}
 
-    def get_labels(self) -> [str]:
+    def get_labels(self) -> List[str]:
         """
         Extract and return a list of all the Neo4j labels present in the database.
         No particular order should be expected.
@@ -709,7 +709,7 @@ class NeoInterface:
         results = self.query("call db.labels() yield label return label")
         return [x['label'] for x in results]
 
-    def get_relationshipTypes(self) -> [str]:
+    def get_relationshipTypes(self) -> List[str]:
         """
         Extract and return a list of all the Neo4j relationship types present in the database.
         No particular order should be expected.
@@ -1760,7 +1760,7 @@ class NeoInterface:
     #                                                                                          #
     ############################################################################################
 
-    def export_dbase_json(self) -> {}:
+    def export_dbase_json(self) -> dict:
         """
         Export the entire Neo4j database as a JSON string
         EXAMPLE:
