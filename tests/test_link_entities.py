@@ -19,9 +19,9 @@ def test_link_entities_default(db):
     db.link_nodes_by_ids(right, sdr, "FROM_DATA")
 
     db.link_entities(left_class='apple', right_class='fruit',
-                cond_via_node="Source Data Row",
-                cond_left_rel="FROM_DATA>",
-                cond_right_rel="<FROM_DATA",)
+                     cond_via_node="Source Data Row",
+                     cond_left_rel="FROM_DATA>",
+                     cond_right_rel="<FROM_DATA",)
     cypher = "MATCH (l:apple)-[rel:HAS_FRUIT]->(r:fruit) RETURN rel"
     result = db.query(cypher)
     assert len(result) == 1

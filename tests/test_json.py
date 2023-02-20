@@ -201,7 +201,7 @@ def test_load_dict(db):
 
 def test_load_arrows_dict(db):
     db.clean_slate()
-    with open("data/arrows.json", 'r') as jsonfile:
+    with open("tests/data/arrows.json", 'r') as jsonfile:
         dct = json.load(jsonfile)
     db.load_arrows_dict(dct)
     q = """
@@ -215,7 +215,7 @@ def test_load_arrows_dict(db):
 
 def test_load_arrows_dict_merge_on(db):
     db.clean_slate()
-    with open("data/arrows.json", 'r') as jsonfile:
+    with open("tests/data/arrows.json", 'r') as jsonfile:
         dct = json.load(jsonfile)
     db.query("CREATE (:Person{name:'Peter'})")
     # no merge_on:
@@ -261,7 +261,7 @@ def test_load_arrows_dict_merge_on(db):
 
 def test_load_arrows_dict_caption(db):
     db.clean_slate()
-    with open("data/arrows_caption.json", 'r') as jsonfile:
+    with open("tests/data/arrows_caption.json", 'r') as jsonfile:
         dct = json.load(jsonfile)
     db.load_arrows_dict(dct)
     res = db.query("MATCH path = (:`No Label`{value: 'Peter'})-[:RELATED]->(:`No Label`{value: 'GSK'}) RETURN path")
