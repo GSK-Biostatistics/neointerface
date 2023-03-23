@@ -32,7 +32,7 @@ for line in requirements:
 
 setuptools.setup(
     name="neointerface",                     # This is the name of the package
-    version="3.2.0",                         # The initial release version
+    version="3.3.0",                         # The initial release version
     author="Alexey Kuznetsov, Julian West, Ben Grinsted, William McDermott",  # Full name of the authors
     description="A Python interface to use the Neo4j graph database",
     long_description=long_description,      # Long description read from the the readme file
