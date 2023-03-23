@@ -1,0 +1,1 @@
+call db.labels() yield label return label order by label

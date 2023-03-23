@@ -137,6 +137,11 @@ name | arguments| return
 
 --- 
 
+# Mini-UI
+A mini user interface over some of the NeoInterface functionality is included in this repository. Simply set you environment variables to connect to Neo4j(NEO4J_HOST, NEO4J_USER and NEO4J_PASSWORD) and run 
+```source app.sh```
+on Unix.
+
 
 # GENERAL METHODS
 
