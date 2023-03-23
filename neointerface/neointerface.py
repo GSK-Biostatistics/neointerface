@@ -10,10 +10,13 @@ import re
 import json
 import time
 import collections
+import logging
+from urllib.parse import quote
 from typing import Union, List
 from warnings import warn
 from networkx import MultiDiGraph
 from neo4j.graph import Node, Relationship, Path
+from logger.logger import logger
 
 
 class NeoInterface:
@@ -58,12 +61,11 @@ class NeoInterface:
                             DEFAULT: read from NEO4J_USER and NEO4J_PASSWORD environmental variables
                             if None then no authentication is used
         :param apoc:        Flag indicating whether apoc library is used on Neo4j database to connect to
-        :param verbose:     Flag indicating whether a verbose mode is to be used by all methods of this class
-        :param debug:       Flag indicating whether a debug mode is to be used by all methods of this class
+        :param verbose:     Flag indicating whether ANY logs will be displayed
+        :param debug:       Flag indicating whether logs will be in debug or info mode
         :param autoconnect  Flag indicating whether the class should establish connection to database at initialization
         """
         self.verbose = verbose
-        self.debug = debug
         self.autoconnect = autoconnect
         self.host = host
         self.credentials = credentials
@@ -71,7 +73,11 @@ class NeoInterface:
         self.rdf = rdf
         self.rdf_host = rdf_host
         if self.verbose:
-            print("---------------- Initializing NeoInterface -------------------")
+            logger.info("\t\tInitializing NeoInterface")
+            if debug:
+                logging.getLogger('neointerface').setLevel(logging.DEBUG)
+            else:
+                logging.getLogger('neointerface').setLevel(logging.INFO)
         if self.autoconnect:  # TODO: add test for autoconnect == False
             # Attempt to create a driver object
             self.connect()
@@ -100,7 +106,7 @@ class NeoInterface:
             self.test_connection()
 
         if self.verbose:
-            print(f"Connection to {self.host} established")
+            logger.info(f"Connection to {self.host} established")
 
     def test_connection(self):
         try:
@@ -113,8 +119,8 @@ class NeoInterface:
         try:
             self.query("CALL n10s.graphconfig.init({handleVocabUris:'IGNORE'});")
         except:
-            if self.debug:
-                print("Config already created, make sure the config is correct")
+            if self.verbose:
+                logger.debug("Config already created, make sure the config is correct")
         self.create_constraint(label="Resource", key="uri", type="UNIQUE", name="n10s_unique_uri")
 
     def rdf_setup_connection(self) -> None:
@@ -129,7 +135,7 @@ class NeoInterface:
             get_response = json.loads(requests.get(f"{self.rdf_host}ping", auth=self.credentials).text)
             if self.verbose:
                 if "here!" in get_response.values():
-                    print(f"Connection to {self.rdf_host} established")
+                    logger.info(f"Connection to {self.rdf_host} established")
         except:
             error_msg = f"CHECK IF RDF ENDPOINT IS SET UP CORRECTLY! While instantiating the NeoInterface object, failed to connect to {self.rdf_host}"
             raise Exception(error_msg)
@@ -509,8 +515,8 @@ class NeoInterface:
                                                   cypher_clause=cypher_clause, cypher_dict=cypher_dict)
         cypher += " RETURN n"
 
-        if self.debug:
-            print(f"""
+        if self.verbose:
+            logger.debug(f"""
             In get_nodes().
             query: {cypher}
             parameters: {cypher_dict}
@@ -670,8 +676,8 @@ class NeoInterface:
             # Fetch the parents
             cypher = f"MATCH (parent)-[inbound]->(n) WHERE id(n) = {node_id} " \
                      "RETURN id(parent) AS id, labels(parent) AS labels, type(inbound) AS rel"
-            if self.debug:
-                print(f"""
+            if self.verbose:
+                logger.debug(f"""
                 query: {cypher}            
                 """)
             result_obj = new_session.run(cypher)  # A new neo4j.Result object
@@ -680,13 +686,13 @@ class NeoInterface:
             #       [{'id': 163, 'labels': ['Subject'], 'rel': 'HAS_TREATMENT'},
             #        {'id': 150, 'labels': ['Subject'], 'rel': 'HAS_TREATMENT'}]
             if self.verbose:
-                print(f"parent_list for node {node_id}:", parent_list)
+                logger.info(f"parent_list for node {node_id}:", parent_list)
 
             # Fetch the children
             cypher = f"MATCH (n)-[outbound]->(child) WHERE id(n) = {node_id} " \
                      "RETURN id(child) AS id, labels(child) AS labels, type(outbound) AS rel"
-            if self.debug:
-                print(f"""
+            if self.verbose:
+                logger.debug(f"""
                 query: {cypher}      
                 """)
             result_obj = new_session.run(cypher)  # A new neo4j.Result object
@@ -695,7 +701,7 @@ class NeoInterface:
             #       [{'id': 107, 'labels': ['Source Data Row'], 'rel': 'FROM_DATA'},
             #        {'id': 103, 'labels': ['Source Data Row'], 'rel': 'FROM_DATA'}]
             if self.verbose:
-                print(f"child_list for node {node_id}:", child_list)
+                logger.info(f"child_list for node {node_id}:", child_list)
 
         return {'parent_list': parent_list, 'child_list': child_list}
 
@@ -727,8 +733,8 @@ class NeoInterface:
         ORDER BY propertyName
         """
         params = {'label': label}
-        if self.debug:
-            print("q : ", q, " | params : ", params)
+        if self.verbose:
+            logger.debug("q : ", q, " | params : ", params)
         return [res['propertyName'] for res in self.query(q, params)]
 
     #########################################################################################
@@ -828,8 +834,8 @@ class NeoInterface:
 
         if (label, key) not in existing_standard_name_pairs:
             q = f'CREATE INDEX `{label}.{key}` FOR (s:`{label}`) ON (s.`{key}`)'
-            if self.debug:
-                print(f"""
+            if self.verbose:
+                logger.debug(f"""
                 query: {q}
                 """)
             self.query(q)
@@ -865,8 +871,8 @@ class NeoInterface:
 
         try:
             q = f'CREATE CONSTRAINT {cname} ON (s:`{label}`) ASSERT s.`{key}` IS UNIQUE'
-            if self.debug:
-                print(f"""
+            if self.verbose:
+                logger.debug(f"""
                 query: {q}
                 """)
             self.query(q)
@@ -885,8 +891,8 @@ class NeoInterface:
         """
         try:
             q = f"DROP INDEX `{name}`"
-            if self.debug:
-                print(f"""
+            if self.verbose:
+                logger.debug(f"""
                 query: {q}
                 """)
             self.query(q)  # Note: it crashes if the index doesn't exist
@@ -920,8 +926,8 @@ class NeoInterface:
         """
         try:
             q = f"DROP CONSTRAINT `{name}`"
-            if self.debug:
-                print(f"""
+            if self.verbose:
+                logger.debug(f"""
                 query: {q}
                 """)
             self.query(q)  # Note: it crashes if the constraint doesn't exist
@@ -974,8 +980,8 @@ class NeoInterface:
         # Assemble the complete Cypher query
         cypher = f"CREATE (n {cypher_labels} {attributes_str}) RETURN n"
 
-        if self.debug:
-            print(f"""
+        if self.verbose:
+            logger.debug(f"""
                 In create_node_by_label_and_dict().
                 query: {cypher}
                 parameters: {data_dictionary}
@@ -1000,7 +1006,7 @@ class NeoInterface:
         if (delete_labels is None) and (keep_labels is None):
             # Delete ALL nodes AND ALL relationship from the database; for efficiency, do it all at once
             if self.verbose:
-                print(f" --- Deleting all nodes in the database ---")
+                logger.info(f" --- Deleting all nodes in the database ---")
 
             if batch_size:  # In order to avoid memory errors, delete data in batches
                 q = f"""
@@ -1014,8 +1020,8 @@ class NeoInterface:
             else:
                 q = "MATCH (n) DETACH DELETE(n)"
 
-            if self.debug:
-                print(f"""
+            if self.verbose:
+                logger.debug(f"""
                 query: {q}
                 """)
 
@@ -1040,10 +1046,10 @@ class NeoInterface:
         for label in delete_labels:
             if not (label in keep_labels):
                 if self.verbose:
-                    print(f" --- Deleting nodes with label: `{label}` ---")
+                    logger.info(f" --- Deleting nodes with label: `{label}` ---")
                 q = f"MATCH (x:`{label}`) DETACH DELETE x"
-                if self.debug:
-                    print(f"""
+                if self.verbose:
+                    logger.debug(f"""
                     query: {q}                        
                     """)
                 self.query(q)
@@ -1103,9 +1109,9 @@ class NeoInterface:
         # Example of data binding:
         #       {"par_1": 123, "color": "white", "price": 7000}
 
-        if self.debug:
-            print("cypher: ", cypher)
-            print("data_binding: ", cypher_dict)
+        if self.verbose:
+            logger.debug("cypher: ", cypher)
+            logger.debug("data_binding: ", cypher_dict)
 
         self.query(cypher, cypher_dict)
 
@@ -1172,8 +1178,8 @@ class NeoInterface:
                 """
                 q_match_altered = True
             else:
-                if self.debug:
-                    print("ERROR: not all parameters have been supplied in cypher_dict, missing: ", missing_params)
+                if self.verbose:
+                    logger.debug("ERROR: not all parameters have been supplied in cypher_dict, missing: ", missing_params)
 
         rel_left = ('' if direction == '>' else '<')
         rel_right = ('>' if direction == '>' else '')
@@ -1197,10 +1203,10 @@ class NeoInterface:
             inner_params = {**inner_params, 'cypher': cypher, 'cypher_dict': cypher_dict}
         params = {'q_match_part': q_match_part, 'target_label': target_label, 'inner_params': inner_params}
         res = self.query(q, params)
-        if self.debug:
-            print("        Query : ", q)
-            print("        Query parameters: ", params)
-            print("        Result of above query : ", res, "\n")
+        if self.verbose:
+            logger.debug("        Query : ", q)
+            logger.debug("        Query parameters: ", params)
+            logger.debug("        Result of above query : ", res, "\n")
 
     #########################################################################################
     #                                                                                       #
@@ -1252,12 +1258,12 @@ class NeoInterface:
         cond_right_rel_type = re.sub(r'^(\<)?(.*?)(\>)?$', r'\2', cond_right_rel)
         if cond_cypher:
             if self.verbose:
-                print(
+                logger.info(
                     f"Using cypher condition to link nodes. Labels: {left_class}, {right_class}; Cypher: {cond_cypher}")
-                periodic_part1 = """
-                CALL apoc.cypher.run($cypher, $cypher_dict) YIELD value
-                RETURN value.`left` as left, value.`right` as right                                                
-                """
+            periodic_part1 = """
+            CALL apoc.cypher.run($cypher, $cypher_dict) YIELD value
+            RETURN value.`left` as left, value.`right` as right                                                
+            """
         else:
             periodic_part1 = f'''
             MATCH (left){cond_left_rel_mark1}-[:`{cond_left_rel_type}`*0..1]-{cond_left_rel_mark2}(sdr:`{cond_via_node}`),
@@ -1276,9 +1282,9 @@ class NeoInterface:
             RETURN total, batches, failedBatches
         """
         params = {'cypher': cond_cypher, 'cypher_dict': cond_cypher_dict}
-        if self.debug:
-            print("        Query : ", q)
-            print("        Query parameters: ", params)
+        if self.verbose:
+            logger.debug("        Query : ", q)
+            logger.debug("        Query parameters: ", params)
         self.query(q, params)
 
     def link_nodes_on_matching_property(self, label1: str, label2: str, property1: str, rel: str,
@@ -1304,8 +1310,8 @@ class NeoInterface:
             property2 = property1
         q = f'''MATCH (x:`{label1}`), (y:`{label2}`) WHERE x.`{property1}` = y.`{property2}` 
                 MERGE (x)-[:{rel}]->(y)'''
-        if self.debug:
-            print(f"""
+        if self.verbose:
+            logger.debug(f"""
             query: {q}
             """)
         self.query(q)
@@ -1330,8 +1336,8 @@ class NeoInterface:
         """
         q = f'''MATCH (x:`{label1}`), (y:`{label2}`) WHERE x.`{prop_name}` = "{prop_value}" AND y.`{prop_name}` = "{prop_value}" 
                 MERGE (x)-[:{rel}]->(y)'''
-        if self.debug:
-            print(f"""
+        if self.verbose:
+            logger.debug(f"""
             query: {q}
             """)
         self.query(q)
@@ -1364,8 +1370,8 @@ class NeoInterface:
         cypher_dict["node_id1"] = node_id1
         cypher_dict["node_id2"] = node_id2
 
-        if self.debug:
-            print(f"""
+        if self.verbose:
+            logger.debug(f"""
             query: {q}
             parameters: {cypher_dict}
             """)
@@ -1467,8 +1473,8 @@ class NeoInterface:
                 RETURN id(x) as node_id 
                 '''
                 cypher_dict = {'data': df_chunk.to_dict(orient='records')}
-            if self.debug:
-                print(f"""
+            if self.verbose:
+                logger.debug(f"""
                 query: {cypher}
                 parameters: {cypher_dict}
                 """)
@@ -1829,8 +1835,8 @@ class NeoInterface:
         except Exception as ex:
             raise Exception(f"Incorrectly-formatted JSON string. {ex}")
 
-        if self.debug:
-            print("json_list: ", json_list)
+        if self.verbose:
+            logger.debug("json_list: ", json_list)
 
         assert type(json_list) == list, "The JSON string does not represent the expected list"
 
@@ -1870,24 +1876,24 @@ class NeoInterface:
         num_nodes_imported = 0
         for item in json_list:
             if item["type"] == "node":
-                if self.debug:
-                    print("ADDING NODE: ", item)
-                    print(f'     Creating node with label `{item["labels"][0]}` and properties {item["properties"]}')
+                if self.verbose:
+                    logger.debug("ADDING NODE: ", item)
+                    logger.debug(f'     Creating node with label `{item["labels"][0]}` and properties {item["properties"]}')
                 old_id = int(item["id"])
                 new_id = self.create_node_by_label_and_dict(item["labels"][0], item[
                     "properties"])  # TODO: Only the 1st label is used for now
                 id_shifting[old_id] = new_id
                 num_nodes_imported += 1
 
-        if self.debug:
-            print("id_shifting map:", id_shifting)
+        if self.verbose:
+            logger.debug("id_shifting map:", id_shifting)
 
         # Then process all the relationships, linking to the correct (newly-created) nodes by using the id_shifting map
         num_rels_imported = 0
         for item in json_list:
             if item["type"] == "relationship":
-                if self.debug:
-                    print("ADDING RELATIONSHIP: ", item)
+                if self.verbose:
+                    logger.debug("ADDING RELATIONSHIP: ", item)
 
                 rel_name = item["label"]
                 rel_props = item.get(
@@ -2041,8 +2047,8 @@ class NeoInterface:
                     'neighbours': config['neighbours']
                 })
 
-            if self.debug:
-                print(f"""
+            if self.verbose:
+                logger.debug(f"""
                 query: {cypher}
                 parameters: {cypher_dict}
                 """)
@@ -2075,8 +2081,8 @@ class NeoInterface:
         cypher = "CALL n10s.rdf.import.fetch ($url, $format) YIELD terminationStatus, triplesLoaded, triplesParsed, " \
                  "namespaces, extraInfo, callParams"
         cypher_dict = {'url': url, 'format': format}
-        if self.debug:
-            print(f"""
+        if self.verbose:
+            logger.debug(f"""
                 query: {cypher}
                 parameters: {cypher_dict}
                 """)
@@ -2100,8 +2106,8 @@ class NeoInterface:
         """
         # cypher_dict = {'rdf':rdf.encode('utf-8').decode('utf-8'), 'format': format}
         cypher_dict = {'rdf': rdf, 'format': format}
-        if self.debug:
-            print(f"""
+        if self.verbose:
+            logger.debug(f"""
             query: {cypher}
             parameters: {cypher_dict}
             """)
@@ -2122,8 +2128,8 @@ class NeoInterface:
             RETURN batches, failedBatches, total, failedOperations
         """
         cypher_dict = {'labels': [label for label in self.get_labels() if "%20" in label]}
-        if self.debug:
-            print(f"""
+        if self.verbose:
+            logger.debug(f"""
             query: {cypher}
             parameters: {cypher_dict}
             """)
@@ -2145,8 +2151,8 @@ class NeoInterface:
         RETURN value['node']
         """
         cypher_dict2 = {}
-        if self.debug:
-            print(f"""
+        if self.verbose:
+            logger.debug(f"""
             query: {cypher2}
             parameters: {cypher_dict2}
             """)
@@ -2164,8 +2170,8 @@ class NeoInterface:
         SET n.uri = apoc.text.replace(n.uri, '%3A', ':')
         """
         cypher_dict3 = {}
-        if self.debug:
-            print(f"""
+        if self.verbose:
+            logger.debug(f"""
             query: {cypher3}
             parameters: {cypher_dict3}
             """)
