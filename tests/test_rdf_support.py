@@ -69,6 +69,7 @@ def test_rdf_generate_uri_where(db):
                        {'x.uri': 'neo4j://graph.schema#Car/toyota/petrol'}]
     assert equal_ignore_order(result, expected_result)
 
+
 def test_rdf_generate_uri_from_neighbours_dct0(db):
     db.clean_slate()
     db.query("""CREATE (v:Vehicle{producer: 'Toyota'}),
@@ -84,6 +85,7 @@ def test_rdf_generate_uri_from_neighbours_dct0(db):
     expected_result = [{'x.uri': 'neo4j://graph.schema#Model/Toyota/Prius'},
                        {'x.uri': 'neo4j://graph.schema#Vehicle/Toyota'}]
     assert equal_ignore_order(result, expected_result)
+
 
 def test_rdf_generate_uri_from_neighbours_dct1(db):
     db.clean_slate()
@@ -101,6 +103,7 @@ def test_rdf_generate_uri_from_neighbours_dct1(db):
                        {'x.uri': 'neo4j://graph.schema#Vehicle/Toyota'}]
     assert equal_ignore_order(result, expected_result)
 
+
 def test_rdf_generate_uri_from_neighbours_dct2(db):
     db.clean_slate()
     db.query("""CREATE (v:Vehicle{producer: 'Toyota'}),
@@ -111,10 +114,10 @@ def test_rdf_generate_uri_from_neighbours_dct2(db):
     """)
     db.rdf_generate_uri({
         "Vehicle": {"properties": "producer"},
-        "Model": {"properties": ["name"], #Prius
+        "Model": {"properties": ["name"],  # Prius
                   "neighbours": [
-                      {"label": "Vehicle", "relationship": "HAS_MODEL", "property": "producer"}, #Toyota
-                      {"label": "Invention", "relationship": "APPEARED", "property": "year"}, #1997
+                      {"label": "Vehicle", "relationship": "HAS_MODEL", "property": "producer"},  # Toyota
+                      {"label": "Invention", "relationship": "APPEARED", "property": "year"},  # 1997
                   ]}
     })
     result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri")

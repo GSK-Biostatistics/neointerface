@@ -2,6 +2,7 @@ import pytest
 import neointerface
 import pandas as pd
 
+
 # Provide a database connection that can be used by the various tests that need it
 @pytest.fixture(scope="module")
 def db():
@@ -51,6 +52,7 @@ def test_extract_entities2(db):
     colors = db.get_nodes("Color")
     assert things == df.to_dict(orient='records')
     assert colors == [{'color': 'red'}, {'color': 'blue'}]
+
 
 def test_extract_empty(db):
     # Completely clear the database
