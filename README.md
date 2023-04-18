@@ -78,7 +78,7 @@ cypher = "MATCH (p :patient)-[IS_TREATED_BY]->(d :doctor {name:'Hippocrates'}) R
 result = db.query(cypher)
 print(result)   # SHOWS:  [{'p': {'gender': 'M', 'patient_id': 123}}]
 ```
-The database constructed so far, as seen in the Neo4j browser:
+The database constructed so far, as seen in the Neo4j [browser](https://browser.neo4j.io/):
 ![The database constructed so far, as seen in the Neo4j browser](docs/Example_database.png)
 
 ## From Pandas dataframe to Neo4j and back
