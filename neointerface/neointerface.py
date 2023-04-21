@@ -686,7 +686,7 @@ class NeoInterface:
             #       [{'id': 163, 'labels': ['Subject'], 'rel': 'HAS_TREATMENT'},
             #        {'id': 150, 'labels': ['Subject'], 'rel': 'HAS_TREATMENT'}]
             if self.verbose:
-                logger.info(f"parent_list for node {node_id}:", parent_list)
+                logger.info(f"parent_list for node {node_id}: {parent_list}")
 
             # Fetch the children
             cypher = f"MATCH (n)-[outbound]->(child) WHERE id(n) = {node_id} " \
@@ -701,7 +701,7 @@ class NeoInterface:
             #       [{'id': 107, 'labels': ['Source Data Row'], 'rel': 'FROM_DATA'},
             #        {'id': 103, 'labels': ['Source Data Row'], 'rel': 'FROM_DATA'}]
             if self.verbose:
-                logger.info(f"child_list for node {node_id}:", child_list)
+                logger.info(f"child_list for node {node_id}: {child_list}")
 
         return {'parent_list': parent_list, 'child_list': child_list}
 
@@ -734,7 +734,7 @@ class NeoInterface:
         """
         params = {'label': label}
         if self.verbose:
-            logger.debug("q : ", q, " | params : ", params)
+            logger.debug(f"q : {q} | params : {params}")
         return [res['propertyName'] for res in self.query(q, params)]
 
     #########################################################################################
@@ -1110,8 +1110,8 @@ class NeoInterface:
         #       {"par_1": 123, "color": "white", "price": 7000}
 
         if self.verbose:
-            logger.debug("cypher: ", cypher)
-            logger.debug("data_binding: ", cypher_dict)
+            logger.debug(f"cypher: {cypher}")
+            logger.debug(f"data_binding: {cypher_dict}")
 
         self.query(cypher, cypher_dict)
 
@@ -1179,7 +1179,7 @@ class NeoInterface:
                 q_match_altered = True
             else:
                 if self.verbose:
-                    logger.debug("ERROR: not all parameters have been supplied in cypher_dict, missing: ", missing_params)
+                    logger.debug(f"ERROR: not all parameters have been supplied in cypher_dict, missing: {missing_params}")
 
         rel_left = ('' if direction == '>' else '<')
         rel_right = ('>' if direction == '>' else '')
@@ -1204,9 +1204,9 @@ class NeoInterface:
         params = {'q_match_part': q_match_part, 'target_label': target_label, 'inner_params': inner_params}
         res = self.query(q, params)
         if self.verbose:
-            logger.debug("        Query : ", q)
-            logger.debug("        Query parameters: ", params)
-            logger.debug("        Result of above query : ", res, "\n")
+            logger.debug(f"        Query : {q}")
+            logger.debug(f"        Query parameters: {params}")
+            logger.debug(f"        Result of above query : {res}\n")
 
     #########################################################################################
     #                                                                                       #
@@ -1283,8 +1283,8 @@ class NeoInterface:
         """
         params = {'cypher': cond_cypher, 'cypher_dict': cond_cypher_dict}
         if self.verbose:
-            logger.debug("        Query : ", q)
-            logger.debug("        Query parameters: ", params)
+            logger.debug(f"        Query : {q}")
+            logger.debug(f"        Query parameters: {params}")
         self.query(q, params)
 
     def link_nodes_on_matching_property(self, label1: str, label2: str, property1: str, rel: str,
@@ -1836,7 +1836,7 @@ class NeoInterface:
             raise Exception(f"Incorrectly-formatted JSON string. {ex}")
 
         if self.verbose:
-            logger.debug("json_list: ", json_list)
+            logger.debug(f"json_list: {json_list}")
 
         assert type(json_list) == list, "The JSON string does not represent the expected list"
 
@@ -1877,7 +1877,7 @@ class NeoInterface:
         for item in json_list:
             if item["type"] == "node":
                 if self.verbose:
-                    logger.debug("ADDING NODE: ", item)
+                    logger.debug(f"ADDING NODE: {item}")
                     logger.debug(f'     Creating node with label `{item["labels"][0]}` and properties {item["properties"]}')
                 old_id = int(item["id"])
                 new_id = self.create_node_by_label_and_dict(item["labels"][0], item[
@@ -1886,14 +1886,14 @@ class NeoInterface:
                 num_nodes_imported += 1
 
         if self.verbose:
-            logger.debug("id_shifting map:", id_shifting)
+            logger.debug(f"id_shifting map: {id_shifting}")
 
         # Then process all the relationships, linking to the correct (newly-created) nodes by using the id_shifting map
         num_rels_imported = 0
         for item in json_list:
             if item["type"] == "relationship":
                 if self.verbose:
-                    logger.debug("ADDING RELATIONSHIP: ", item)
+                    logger.debug(f"ADDING RELATIONSHIP: {item}")
 
                 rel_name = item["label"]
                 rel_props = item.get(
