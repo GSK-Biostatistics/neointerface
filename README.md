@@ -231,6 +231,8 @@ name | arguments| return
 -----| ---------| -------
 *query_expanded*| q: str, params = None, flatten = False| []
 
+**NOTE: This procedure will be deprecated, use query(... return_type: str = 'neo4j.Result') instead**
+
     Expanded version of query(), meant to extract additional info for queries that return Graph Data Types,
     i.e. nodes, relationships or paths,
     such as "MATCH (n) RETURN n", or "MATCH (n1)-[r]->(n2) RETURN r"
@@ -653,6 +655,31 @@ name | arguments| return
 
 
 ---
+
+
+## set_fields()
+name | arguments| return
+-----| ---------| -------
+*set_fields*| labels, set_dict, properties_condition=None, cypher_clause=None, cypher_dict=None| None
+
+    EXAMPLE - locate the "car" with vehicle id 123 and set its color to white and price to 7000
+            set_fields(labels = "car", set_dict = {"color": "white", "price": 7000},
+                       properties_condition = {"vehicle id": 123})
+
+        LIMITATION: blanks are allowed in the keys of properties_condition, but not in those of set_dict
+
+        :param labels:                  A string, or list/tuple of strings, representing Neo4j labels
+        :param set_dict:                A dictionary of field name/values to create/update the node's attributes
+                                            (note: no blanks are allowed in the keys)
+        :param properties_condition:
+        :param cypher_clause:
+        :param cypher_dict:
+        :return:                        None
+
+
+
+---
+
 
 ## extract_entities()
 name | arguments| return
