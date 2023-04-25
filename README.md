@@ -110,7 +110,18 @@ If you want them back as a dataframe, just do:
 ```python
 df_new = db.get_df("my_label")
 ```
+## From dictionary to Neo4j
+If you have a dictionary, for example:
+```python
+dictionary = {"class": "Dataset", "name": "DM", "Column": [{"name": "USUBJID"}, {"name": "DMDTC", "type": "datetime"}]}
+```
+Load it into the Neo4j database simply with:
+```python
+db.load_dict(dictionary, label="Dataset")
+```
+where *db* is the instantiated NeoInterface class from the earlier example, and label is the label to assign to the root node.
 
+![image](docs/load_dict.png)
 
 
 # Instantiating the Class
