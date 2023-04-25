@@ -78,7 +78,7 @@ cypher = "MATCH (p :patient)-[IS_TREATED_BY]->(d :doctor {name:'Hippocrates'}) R
 result = db.query(cypher)
 print(result)   # SHOWS:  [{'p': {'gender': 'M', 'patient_id': 123}}]
 ```
-The database constructed so far, as seen in the Neo4j browser:
+The database constructed so far, as seen in the Neo4j [browser](https://browser.neo4j.io/):
 ![The database constructed so far, as seen in the Neo4j browser](docs/Example_database.png)
 
 ## From Pandas dataframe to Neo4j and back
@@ -110,7 +110,18 @@ If you want them back as a dataframe, just do:
 ```python
 df_new = db.get_df("my_label")
 ```
+## From dictionary to Neo4j
+If you have a dictionary, for example:
+```python
+dictionary = {"class": "Dataset", "name": "DM", "Column": [{"name": "USUBJID"}, {"name": "DMDTC", "type": "datetime"}]}
+```
+Load it into the Neo4j database simply with:
+```python
+db.load_dict(dictionary, label="Dataset")
+```
+where *db* is the instantiated NeoInterface class from the earlier example, and label is the label to assign to the root node.
 
+![image](docs/load_dict.png)
 
 
 # Instantiating the Class
@@ -230,6 +241,8 @@ name | arguments| return
 name | arguments| return
 -----| ---------| -------
 *query_expanded*| q: str, params = None, flatten = False| []
+
+**NOTE: This procedure will be deprecated, use query(... return_type: str = 'neo4j.Result') instead**
 
     Expanded version of query(), meant to extract additional info for queries that return Graph Data Types,
     i.e. nodes, relationships or paths,
@@ -653,6 +666,31 @@ name | arguments| return
 
 
 ---
+
+
+## set_fields()
+name | arguments| return
+-----| ---------| -------
+*set_fields*| labels, set_dict, properties_condition=None, cypher_clause=None, cypher_dict=None| None
+
+    EXAMPLE - locate the "car" with vehicle id 123 and set its color to white and price to 7000
+            set_fields(labels = "car", set_dict = {"color": "white", "price": 7000},
+                       properties_condition = {"vehicle id": 123})
+
+        LIMITATION: blanks are allowed in the keys of properties_condition, but not in those of set_dict
+
+        :param labels:                  A string, or list/tuple of strings, representing Neo4j labels
+        :param set_dict:                A dictionary of field name/values to create/update the node's attributes
+                                            (note: no blanks are allowed in the keys)
+        :param properties_condition:
+        :param cypher_clause:
+        :param cypher_dict:
+        :return:                        None
+
+
+
+---
+
 
 ## extract_entities()
 name | arguments| return
