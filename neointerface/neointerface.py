@@ -1887,9 +1887,9 @@ class NeoInterface:
                     props = {}
                 if self.verbose:
                     logger.debug(f"ADDING NODE: {item}")
-                    logger.debug(f'     Creating node with label `{item["labels"][0]}` and properties {props}')
+                    logger.debug(f'     Creating node with labels `{str(item["labels"])}` and properties {props}')
                 old_id = int(item["id"])
-                new_id = self.create_node_by_label_and_dict(item["labels"][0], props)  # TODO: Only the 1st label is used for now
+                new_id = self.create_node_by_label_and_dict(item["labels"], props)  # TODO: Only the 1st label is used for now
                 id_shifting[old_id] = new_id
                 num_nodes_imported += 1
 
