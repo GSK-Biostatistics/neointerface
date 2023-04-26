@@ -1831,15 +1831,21 @@ class NeoInterface:
         """
 
         try:
-            json_list = json.loads(json_str)  # Turn the string (representing a JSON list) into a list
+            json_obj = json.loads(json_str)  # Turn the string (representing a JSON list) into a list
         except Exception as ex:
             raise Exception(f"Incorrectly-formatted JSON string. {ex}")
 
+        if isinstance(json_obj, list):
+            json_list = json_obj
+        elif isinstance(json_obj, dict):
+            assert "data" in json_obj.keys(), "The JSON string dict does not include key 'data'"
+            json_list = json.loads(json_obj["data"])
+        else:
+            assert False, "The JSON string is not a list or dict"
+
         if self.verbose:
             logger.debug(f"json_list: {json_list}")
-
-        assert type(json_list) == list, "The JSON string does not represent the expected list"
-
+            
         id_shifting = {}  # To map the Neo4j internal ID's specified in the JSON data dump
         #       into the ID's of newly-created nodes
 
@@ -1876,12 +1882,14 @@ class NeoInterface:
         num_nodes_imported = 0
         for item in json_list:
             if item["type"] == "node":
+                props = item.get("properties")
+                if props is None:
+                    props = {}
                 if self.verbose:
                     logger.debug(f"ADDING NODE: {item}")
-                    logger.debug(f'     Creating node with label `{item["labels"][0]}` and properties {item["properties"]}')
+                    logger.debug(f'     Creating node with label `{item["labels"][0]}` and properties {props}')
                 old_id = int(item["id"])
-                new_id = self.create_node_by_label_and_dict(item["labels"][0], item[
-                    "properties"])  # TODO: Only the 1st label is used for now
+                new_id = self.create_node_by_label_and_dict(item["labels"][0], props)  # TODO: Only the 1st label is used for now
                 id_shifting[old_id] = new_id
                 num_nodes_imported += 1
 
@@ -2188,3 +2196,4 @@ class NeoInterface:
             url=url,
             auth=self.credentials)
         return response.text
+    
