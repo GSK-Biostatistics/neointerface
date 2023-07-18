@@ -1,10 +1,6 @@
 import setuptools
 import os
 
-with open("README.md", "r") as fh:
-    long_description = fh.read()
-
-
 def read_text(file_name: str):
     return open(os.path.join(file_name)).read()
 
@@ -35,7 +31,7 @@ setuptools.setup(
     version="3.3.1",                         # The initial release version
     author="Alexey Kuznetsov, Julian West, Ben Grinsted, William McDermott",  # Full name of the authors
     description="A Python interface to use the Neo4j graph database",
-    long_description=long_description,      # Long description read from the the readme file
+    long_description="https://github.com/GSK-Biostatistics/neointerface/blob/main/README.md",      # Long description read from the the readme file
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(exclude=["tests"]),    # List of all python modules to be installed
     classifiers=[
