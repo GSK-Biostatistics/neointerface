@@ -27,14 +27,26 @@ def equal_ignore_order(a, b):
 def test_rdf_generate_uri(db):
     db.clean_slate()
     db.create_node_by_label_and_dict("Any Vehicle", {'type': 'car', 'model': 'toyota'})
-    db.create_node_by_label_and_dict("Car", {'fuel': 'petrol', 'model': 'toyota'})
+    db.query(
+    """
+    CREATE (c:Car{fuel: 'petrol', model: 'toyota'})-[:MADE_BY]->(p:Producer{name: 'Toyota Motor Corporation'})
+    """
+    )    
     db.rdf_generate_uri(dct={
         'Any Vehicle': ['type', 'model'],
-        'Car': ['model', 'fuel']
+        'Car': {
+            'properties': ['model', 'fuel'], 
+            'neighbours': [{
+                'label': 'Producer', 
+                'relationship': 'MADE_BY',
+                'property': 'name'
+            }]
+        }
     })
     result = db.query("MATCH (x:Resource) WHERE not x:_GraphConfig RETURN x.uri")
+    print(result)
     expected_result = [{'x.uri': 'neo4j://graph.schema#Any+Vehicle/car/toyota'},
-                       {'x.uri': 'neo4j://graph.schema#Car/toyota/petrol'}]
+                       {'x.uri': 'neo4j://graph.schema#Car/Toyota+Motor+Corporation/toyota/petrol'}]
     assert equal_ignore_order(result, expected_result)
 
 
