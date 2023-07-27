@@ -90,10 +90,10 @@ class NeoInterface:
                 self.rdf_setup_connection()
 
         
-        assert (os.environ.get("NEO4J_HOST"))!="" or (os.environ.get('NEO4J_HOST')) is not None, 'Enviorment var NEO4J_HOST is not defined'
-        assert (os.environ.get("NEO4J_USER"))!="" or (os.environ.get('NEO4J_USER')) is not None, 'Enviorment var NEO4J_USER is not defined'
-        assert (os.environ.get("NEO4J_PASSWORD"))!="" or (os.environ.get('NEO4J_PASSWORD')) is not None, 'Enviorment var NEO4J_PASSWORD is not defined'
-        assert (os.environ.get("NEO4J_RDF_HOST"))!="" or (os.environ.get('NEO4J_RDF_HOST')) is not None, 'Enviorment var NEO4J_RDF_HOST is not defined'
+        assert os.environ.get("NEO4J_HOST", "").strip(), 'Enviorment var NEO4J_HOST is not defined'
+        assert os.environ.get("NEO4J_USER", "").strip(), 'Enviorment var NEO4J_USER is not defined'
+        assert os.environ.get("NEO4J_PASSWORD", "").strip(), 'Enviorment var NEO4J_PASSWORD is not defined'
+        assert os.environ.get("NEO4J_RDF_HOST", "").strip(), 'Enviorment var NEO4J_RDF_HOST is not defined'
 
     def connect(self) -> None:
         try:
