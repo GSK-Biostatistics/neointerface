@@ -1444,7 +1444,7 @@ class NeoInterface:
 
         numeric_columns = []
         if ignore_nan:
-            for col, dtype in df.dtypes.iteritems():
+            for col, dtype in df.dtypes.items():
                 if dtype in ['float64', 'int64']:
                     numeric_columns.append(col)
 
