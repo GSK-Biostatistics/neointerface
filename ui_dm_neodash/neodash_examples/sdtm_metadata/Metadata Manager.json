@@ -1,0 +1,84 @@
+{
+  "title": "Metadata Manager",
+  "version": "2.3",
+  "settings": {
+    "pagenumber": 0,
+    "editable": true,
+    "fullscreenEnabled": false,
+    "parameters": {
+      "neodash_temp": "ar",
+      "neodash_temp_display": "",
+      "neodash_dataset_name": "ADSL",
+      "neodash_dataset_name_display": "ADSL",
+      "neodash_dataset_column": "SAFFL",
+      "neodash_dataset_column_display": "SAFFL",
+      "neodash_label": "Derivation Method",
+      "neodash_label_display": "Derivation Method",
+      "neodash_label2": "Variable",
+      "neodash_label2_display": "Variable",
+      "neodash_variable_dataset_name": "DM",
+      "neodash_variable_dataset_name_display": "DM"
+    }
+  },
+  "pages": [
+    {
+      "title": "Datasets",
+      "reports": [
+        {
+          "id": "5a467c49-7089-4af3-abc5-2efd27a73417",
+          "title": "Datasets",
+          "query": "MATCH (x:Variable) \nWHERE x.`Dataset Name` = $neodash_variable_dataset_name\nRETURN id(x) as _id, x.`Version` as `Version`,x.`Variable Order` as `Variable Order`,x.`Class` as `Class`,x.`Dataset Name` as `Dataset Name`,x.`Variable Name` as `Variable Name`,x.`Variable Label` as `Variable Label`,x.`Type` as `Type`,x.`CDISC CT Codelist Code(s)` as `CDISC CT Codelist Code(s)`,x.`Described Value Domain(s)` as `Described Value Domain(s)`,x.`Value List` as `Value List`,x.`Role` as `Role`,x.`CDISC Notes` as `CDISC Notes`,x.`Core` as `Core`",
+          "width": 10,
+          "height": 2,
+          "x": 2,
+          "y": 0,
+          "type": "table",
+          "selection": {},
+          "settings": {
+            "compact": true,
+            "transposed": false,
+            "allowDownload": true,
+            "columnWidthsType": "Relative (%)",
+            "refreshButtonEnabled": true,
+            "refreshRate": 0
+          }
+        },
+        {
+          "id": "e4a1b3f7-55bf-4187-a889-9b9afd17fb45",
+          "title": "Upload updates",
+          "query": "http://10.40.225.78:8888/app",
+          "width": 5,
+          "height": 2,
+          "x": 0,
+          "y": 2,
+          "type": "iframe",
+          "selection": {},
+          "settings": {}
+        },
+        {
+          "id": "516bf94e-ebc9-4b31-984d-6737eb083332",
+          "title": "",
+          "query": "MATCH (n:`Variable`) \nWHERE toLower(toString(n.`Dataset Name`)) CONTAINS toLower($input) \nRETURN DISTINCT n.`Dataset Name` as value,  n.`Dataset Name` as display ORDER BY size(toString(value)) ASC LIMIT 5",
+          "width": 2,
+          "height": 2,
+          "x": 0,
+          "y": 0,
+          "type": "select",
+          "selection": {},
+          "settings": {
+            "type": "Node Property",
+            "entityType": "Variable",
+            "propertyType": "Dataset Name",
+            "propertyTypeDisplay": "Dataset Name",
+            "parameterName": "neodash_variable_dataset_name"
+          }
+        }
+      ]
+    }
+  ],
+  "parameters": {},
+  "extensions": {
+    "active": true,
+    "activeReducers": []
+  }
+}
