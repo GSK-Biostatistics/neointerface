@@ -763,12 +763,20 @@ class NeoInterface:
             types = []
             where = ""
 
-        q = f"""
-          call db.indexes() 
-          yield name, labelsOrTypes, properties, type, uniqueness
-          {where}
-          return *
-          """
+        if neo4j_driver_version=="5.10.0":
+           q = f"""
+            SHOW INDEXES
+            yield name, labelsOrTypes, properties, type
+            {where}
+            return *
+            """
+        else:
+            q = f"""
+            call db.indexes() 
+            yield name, labelsOrTypes, properties, type, uniqueness
+            {where}
+            return *
+            """
 
         results = self.query(q, {"types": types})
         if len(results) > 0:
@@ -787,7 +795,14 @@ class NeoInterface:
 
         :return:  A (possibly-empty) Pandas dataframe
         """
-        q = """
+        if neo4j_driver_version=="5.10.0":
+            q="""
+           SHOW CONSTRAINTS
+           yield name, type
+           return *
+           """
+        else:
+            q = """
            call db.constraints() 
            yield name, description, details
            return *
@@ -870,7 +885,10 @@ class NeoInterface:
             return False
 
         try:
-            q = f'CREATE CONSTRAINT {cname} ON (s:`{label}`) ASSERT s.`{key}` IS UNIQUE'
+            if neo4j_driver_version=='5.10.0':
+                q=f'CREATE CONSTRAINT {cname} FOR (s:`{label}`) REQUIRE s.`{key}` IS UNIQUE'
+            else:
+                q = f'CREATE CONSTRAINT {cname} ON (s:`{label}`) ASSERT s.`{key}` IS UNIQUE'
             if self.verbose:
                 logger.debug(f"""
                 query: {q}
@@ -1516,7 +1534,7 @@ class NeoInterface:
                 WITH j, apoc.convert.fromJsonMap(j.value) as map
                 WITH j, map, keys(map) as ks UNWIND ks as k
                 call apoc.do.case([
-                    apoc.meta.type(map[k]) = 'MAP'
+                    apoc.meta.cypher.type(map[k]) = 'MAP'
                     ,
                     '
                     CALL apoc.merge.node(["JSON", $k], {value: apoc.convert.toJson($map[$k])}) YIELD node            
@@ -1524,11 +1542,11 @@ class NeoInterface:
                     RETURN node, rel       
                     '
                     ,
-                    apoc.meta.type(map[k]) = 'LIST'
+                    apoc.meta.cypher.type(map[k]) = 'LIST'
                     ,
                     '
                     //first setting LIST property on main node                    
-                    WITH j, map, k, [i in map[k] WHERE apoc.meta.type(i) <> "MAP"] as not_map_lst
+                    WITH j, map, k, [i in map[k] WHERE apoc.meta.cypher.type(i) <> "MAP"] as not_map_lst
                     call apoc.do.when(
                         size(not_map_lst) <> 0,
                         "call apoc.create.setProperty([j], $k, $not_map_lst) YIELD node RETURN node",

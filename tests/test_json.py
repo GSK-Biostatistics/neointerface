@@ -60,7 +60,7 @@ def test_export_dbase_json(db):
     assert result['properties'] == 3
     expected_json = f'[{{"type":"node","id":"{node_id1}","labels":["User"],"properties":{{"name":"Eve"}}}},\n' \
         f' {{"type":"node","id":"{node_id2}","labels":["User"],"properties":{{"name":"Adam","age":30}}}},\n' \
-        f' {{"id":"{rel_id_1}","type":"relationship","label":"LOVES","start":{{"id":"{node_id1}","labels":["User"]}},"end":{{"id":"{node_id2}","labels":["User"]}}}}\n]'
+        f' {{"type":"relationship","id":"{rel_id_1}","label":"LOVES","start":{{"id":"{node_id1}","labels":["User"],"properties":{{"name":"Eve"}}}},"end":{{"id":"{node_id2}","labels":["User"],"properties":{{"name":"Adam","age":30}}}}}}\n]'
     assert result['data'] == expected_json
     ''' EXAMPLE of JSON string:
         [{"type":"node","id":"108","labels":["User"],"properties":{"name":"Eve"}},
@@ -82,8 +82,8 @@ def test_export_dbase_json(db):
     assert result['properties'] == 5  # Note that the 2 properties in the latest relationship went into the count
     expected_json = f'[{{"type":"node","id":"{node_id1}","labels":["User"],"properties":{{"name":"Eve"}}}},\n' \
         f' {{"type":"node","id":"{node_id2}","labels":["User"],"properties":{{"name":"Adam","age":30}}}},\n' \
-        f' {{"id":"{rel_id_1}","type":"relationship","label":"LOVES","start":{{"id":"{node_id1}","labels":["User"]}},"end":{{"id":"{node_id2}","labels":["User"]}}}},\n' \
-        f' {{"id":"{rel_id_2}","type":"relationship","label":"KNOWS","properties":{{"intensity":"eternal","since":1976}},"start":{{"id":"{node_id1}","labels":["User"]}},"end":{{"id":"{node_id2}","labels":["User"]}}}}\n]'
+        f' {{"type":"relationship","id":"{rel_id_1}","label":"LOVES","start":{{"id":"{node_id1}","labels":["User"],"properties":{{"name":"Eve"}}}},"end":{{"id":"{node_id2}","labels":["User"],"properties":{{"name":"Adam","age":30}}}}}},\n' \
+        f' {{"type":"relationship","id":"{rel_id_2}","label":"KNOWS","properties":{{"intensity":"eternal","since":1976}},"start":{{"id":"{node_id1}","labels":["User"],"properties":{{"name":"Eve"}}}},"end":{{"id":"{node_id2}","labels":["User"],"properties":{{"name":"Adam","age":30}}}}}}\n]'
     assert result['data'] == expected_json
     ''' EXAMPLE of JSON string:
         [{"type":"node","id":"124","labels":["User"],"properties":{"name":"Eve"}},
