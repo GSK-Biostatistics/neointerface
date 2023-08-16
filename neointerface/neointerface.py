@@ -78,6 +78,7 @@ class NeoInterface:
                 logging.getLogger('neointerface').setLevel(logging.DEBUG)
             else:
                 logging.getLogger('neointerface').setLevel(logging.INFO)
+        self.db_version = None                
         if self.autoconnect:  # TODO: add test for autoconnect == False
             # Attempt to create a driver object
             self.connect()
@@ -98,6 +99,7 @@ class NeoInterface:
             else:
                 self.driver = GraphDatabase.driver(self.host,
                                                    auth=None)  # Object to connect to Neo4j's Bolt driver for Python
+            self.db_version = self.driver.verify_connectivity()
 
         except Exception as ex:
             error_msg = f"CHECK IF NEO4J IS RUNNING! While instantiating the NeoInterface object, failed to create the driver: {ex}"
