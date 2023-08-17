@@ -72,6 +72,11 @@ class NeoInterface:
         self.apoc = apoc
         self.rdf = rdf
         self.rdf_host = rdf_host
+
+        assert os.environ.get("NEO4J_USER", "").strip(), 'Environment var NEO4J_USER is not defined'
+        assert os.environ.get("NEO4J_PASSWORD", "").strip(), 'Environment var NEO4J_PASSWORD is not defined'
+        assert os.environ.get("NEO4J_HOST", "").strip(), 'Environment var NEO4J_HOST is not defined'
+
         if self.verbose:
             logger.info("\t\tInitializing NeoInterface")
             if debug:
@@ -80,10 +85,9 @@ class NeoInterface:
                 logging.getLogger('neointerface').setLevel(logging.INFO)
         if self.autoconnect:  # TODO: add test for autoconnect == False
             # Attempt to create a driver object
-            assert os.environ.get("NEO4J_USER", "").strip(), 'Environment var NEO4J_USER is not defined'
-            assert os.environ.get("NEO4J_PASSWORD", "").strip(), 'Environment var NEO4J_PASSWORD is not defined'
-            assert os.environ.get("NEO4J_RDF_HOST", "").strip(), 'Environment var NEO4J_RDF_HOST is not defined'
-            assert os.environ.get("NEO4J_HOST", "").strip(), 'Environment var NEO4J_HOST is not defined'
+            
+
+            
             self.connect()
 
             # Extra initializations if APOC custom procedures (note: APOC must also be enabled on the database)
@@ -93,7 +97,7 @@ class NeoInterface:
             if self.rdf:
                 self.rdf_setup_connection()
 
-        
+
         
 
     def connect(self) -> None:
