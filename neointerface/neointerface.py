@@ -89,10 +89,10 @@ class NeoInterface:
             # Extra initializations if RDF support required
             # TODO Add if for versions separately
             if self.rdf:
-                if re.search(r'^[01234]\.', self.get_dbms_details()[0]['version']):
+                if re.search(r'^[01234]\.', self.db_version):
                     self.rdf_setup_connection()
                 else:
-                    logging.debug("Neo4j version 5.x doesn't support n10 plugin, so unable to make RDF connection")    
+                    logging.debug("Neo4j Aura doesn't support n10 plugin, neointerface does will not support RDF connection starting Neo4j version 5 and above")    
 
     def connect(self) -> None:
         try:
@@ -103,7 +103,7 @@ class NeoInterface:
             else:
                 self.driver = GraphDatabase.driver(self.host,
                                                    auth=None)  # Object to connect to Neo4j's Bolt driver for Python
-            self.db_version = self.driver.verify_connectivity()
+            self.db_version = self.get_dbms_details()[0]['version']
 
         except Exception as ex:
             error_msg = f"CHECK IF NEO4J IS RUNNING! While instantiating the NeoInterface object, failed to create the driver: {ex}"
@@ -769,7 +769,7 @@ class NeoInterface:
             types = []
             where = ""
 
-        if not re.search(r'^[01234]\.', self.get_dbms_details()[0]['version']):
+        if not re.search(r'^[01234]\.', self.db_version):
            q = f"""
             SHOW INDEXES
             yield name, labelsOrTypes, properties, type
@@ -801,7 +801,7 @@ class NeoInterface:
 
         :return:  A (possibly-empty) Pandas dataframe
         """
-        if not re.search(r'^[01234]\.', self.get_dbms_details()[0]['version']):
+        if not re.search(r'^[01234]\.', self.db_version):
             q="""
            SHOW CONSTRAINTS
            yield name, type, labelsOrTypes, properties, propertyType
@@ -891,7 +891,7 @@ class NeoInterface:
             return False
 
         try:
-            if not re.search(r'^[01234]\.', self.get_dbms_details()[0]['version']):
+            if not re.search(r'^[01234]\.', self.db_version):
                 q=f'CREATE CONSTRAINT {cname} FOR (s:`{label}`) REQUIRE s.`{key}` IS UNIQUE'
             else:
                 q = f'CREATE CONSTRAINT {cname} ON (s:`{label}`) ASSERT s.`{key}` IS UNIQUE'
@@ -1535,7 +1535,7 @@ class NeoInterface:
         i = 0
         # unpacking hierarchy (looping until no nodes with JSON label are left or maxdepth reached
         while (self.query("MATCH (j:JSON) RETURN j LIMIT 1")) and i < maxdepth:
-            if not re.search(r'^[01234]\.', self.get_dbms_details()[0]['version']):
+            if not re.search(r'^[01234]\.', self.db_version):
                 q="""
                 MATCH (j:JSON)
                 WITH j, apoc.convert.fromJsonMap(j.value) as map

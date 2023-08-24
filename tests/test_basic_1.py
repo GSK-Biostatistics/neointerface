@@ -812,7 +812,7 @@ def test_get_indexes(db):
     result = db.get_indexes()
     assert result.iloc[0]["labelsOrTypes"] == ["my_label"]
     assert result.iloc[0]["properties"] == ["my_property"]
-    if not re.search(r'^[01234]\.', db.get_dbms_details()[0]['version']):
+    if not re.search(r'^[01234]\.', db.db_version):
         assert result.iloc[0]["type"] == "RANGE"
         db.query("CREATE CONSTRAINT some_name FOR (n:my_label) REQUIRE n.node_id IS UNIQUE")
     else:
@@ -822,7 +822,7 @@ def test_get_indexes(db):
            
     result = db.get_indexes()
     new_row = dict(result.iloc[1])
-    if not re.search(r'^[01234]\.', db.get_dbms_details()[0]['version']):
+    if not re.search(r'^[01234]\.', db.db_version):
         assert new_row == {"labelsOrTypes": ["my_label"],
                         "name": "some_name",
                         "properties": ["node_id"],
@@ -847,7 +847,7 @@ def test_create_index(db):
     assert result.iloc[0]["labelsOrTypes"] == ["car"]
     assert result.iloc[0]["name"] == "car.color"
     assert result.iloc[0]["properties"] == ["color"]
-    if not re.search(r'^[01234]\.', db.get_dbms_details()[0]['version']):
+    if not re.search(r'^[01234]\.', db.db_version):
         assert result.iloc[0]["type"] == "RANGE"
     else:
         assert result.iloc[0]["type"] == "BTREE"
@@ -864,7 +864,7 @@ def test_create_index(db):
     assert result.iloc[1]["labelsOrTypes"] == ["car"]
     assert result.iloc[1]["name"] == "car.make"
     assert result.iloc[1]["properties"] == ["make"]
-    if not re.search(r'^[01234]\.', db.get_dbms_details()[0]['version']):
+    if not re.search(r'^[01234]\.', db.db_version):
         assert result.iloc[1]["type"] == "RANGE"
     else:
         assert result.iloc[1]["uniqueness"] == "NONUNIQUE"
@@ -916,7 +916,7 @@ def test_create_constraint(db):
 
     result = db.get_constraints()
     assert len(result) == 1
-    if not re.search(r'^[01234]\.', db.get_dbms_details()[0]['version']):
+    if not re.search(r'^[01234]\.', db.db_version):
         expected_list = ["name", "type", "labelsOrTypes", "properties", "propertyType"]
     else:
         expected_list = ["name", "description", "details"]
@@ -928,7 +928,7 @@ def test_create_constraint(db):
 
     result = db.get_constraints()
     assert len(result) == 2
-    if not re.search(r'^[01234]\.', db.get_dbms_details()[0]['version']):
+    if not re.search(r'^[01234]\.', db.db_version):
         expected_list = ["name", "type", "labelsOrTypes", "properties", "propertyType"]
     else:
         expected_list = ["name", "description", "details"]
@@ -958,25 +958,25 @@ def test_get_constraints(db):
     result = db.get_constraints()
     assert result.empty
 
-    if not re.search(r'^[01234]\.', db.get_dbms_details()[0]['version']):
+    if not re.search(r'^[01234]\.', db.db_version):
         db.query("CREATE CONSTRAINT my_first_constraint FOR (n:patient) REQUIRE n.patient_id IS UNIQUE")
     else:
         db.query("CREATE CONSTRAINT my_first_constraint ON (n:patient) ASSERT n.patient_id IS UNIQUE")
     result = db.get_constraints()
     assert len(result) == 1
-    if not re.search(r'^[01234]\.', db.get_dbms_details()[0]['version']):
+    if not re.search(r'^[01234]\.', db.db_version):
         expected_list = ["name", "type", "labelsOrTypes", "properties", "propertyType"]
     else:
         expected_list = ["name", "description", "details"]
     assert unordered(list(result.columns)) == expected_list
     assert result.iloc[0]["name"] == "my_first_constraint"
-    if not re.search(r'^[01234]\.', db.get_dbms_details()[0]['version']):
+    if not re.search(r'^[01234]\.', db.db_version):
         db.query("CREATE CONSTRAINT unique_model FOR (n:car) REQUIRE n.model IS UNIQUE")
     else:
         db.query("CREATE CONSTRAINT unique_model ON (n:car) ASSERT n.model IS UNIQUE")
     result = db.get_constraints()
     assert len(result) == 2
-    if not re.search(r'^[01234]\.', db.get_dbms_details()[0]['version']):
+    if not re.search(r'^[01234]\.', db.db_version):
         expected_list = ["name", "type", "labelsOrTypes", "properties", "propertyType"]
     else:
         expected_list = ["name", "description", "details"]
