@@ -519,7 +519,7 @@ class NeoInterface:
         """
         (cypher, cypher_dict) = self._match_nodes(labels=labels, properties_condition=properties_condition,
                                                   cypher_clause=cypher_clause, cypher_dict=cypher_dict)
-        cypher += " RETURN n"
+        cypher += " RETURN n ORDER BY id(n)"
 
         if self.verbose:
             logger.debug(f"""
