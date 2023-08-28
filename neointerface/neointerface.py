@@ -519,7 +519,7 @@ class NeoInterface:
         """
         (cypher, cypher_dict) = self._match_nodes(labels=labels, properties_condition=properties_condition,
                                                   cypher_clause=cypher_clause, cypher_dict=cypher_dict)
-        cypher += " RETURN n"
+        cypher += " RETURN n ORDER BY id(n)"
 
         if self.verbose:
             logger.debug(f"""
@@ -1535,94 +1535,49 @@ class NeoInterface:
         i = 0
         # unpacking hierarchy (looping until no nodes with JSON label are left or maxdepth reached
         while (self.query("MATCH (j:JSON) RETURN j LIMIT 1")) and i < maxdepth:
-            if not re.search(r'^[01234]\.', self.db_version):
-                q="""
-                MATCH (j:JSON)
-                WITH j, apoc.convert.fromJsonMap(j.value) as map
-                WITH j, map, keys(map) as ks UNWIND ks as k
-                call apoc.do.case([
-                    apoc.meta.cypher.type(map[k]) = 'MAP'
-                    ,
-                    '
-                    CALL apoc.merge.node(["JSON", $k], {value: apoc.convert.toJson($map[$k])}) YIELD node            
-                    CALL apoc.merge.relationship(j,$rel_prefix + k, {}, {}, node, {}) YIELD rel            
-                    RETURN node, rel       
-                    '
-                    ,
-                    apoc.meta.cypher.type(map[k]) starts with 'LIST'
-                    ,
-                    '
-                    //first setting LIST property on main node                    
-                    WITH j, map, k, [i in map[k] WHERE apoc.meta.cypher.type(i) <> "MAP"] as not_map_lst
-                    call apoc.do.when(
-                        size(not_map_lst) <> 0,
-                        "call apoc.create.setProperty([j], $k, $not_map_lst) YIELD node RETURN node",
-                        "RETURN j",
-                        {j:j, k:k, not_map_lst:not_map_lst}
-                    ) YIELD value
-                    WITH *, [i in map[k] WHERE NOT i IN not_map_lst] as map_lst                    
-                    UNWIND map_lst as item_map
-                    CALL apoc.merge.node(["JSON", $k], {value: apoc.convert.toJson(item_map)}) YIELD node            
-                    CALL apoc.merge.relationship(j,$rel_prefix + k, {}, {}, node, {}) YIELD rel            
-                    RETURN node, rel   
-                    '   
-                    ]
-                    ,
-                    '
-                    call apoc.create.setProperty([j], $k, $map[$k]) YIELD node
-                    RETURN node         
-                    '  
-                    ,
-                    {k: k, map: map, j: j, rel_prefix: $rel_prefix}        
+            q="""
+            MATCH (j:JSON)
+            WITH j, apoc.convert.fromJsonMap(j.value) as map
+            WITH j, map, keys(map) as ks UNWIND ks as k
+            call apoc.do.case([
+                apoc.meta.cypher.type(map[k]) = 'MAP'
+                ,
+                '
+                CALL apoc.merge.node(["JSON", $k], {value: apoc.convert.toJson($map[$k])}) YIELD node            
+                CALL apoc.merge.relationship(j,$rel_prefix + k, {}, {}, node, {}) YIELD rel            
+                RETURN node, rel       
+                '
+                ,
+                apoc.meta.cypher.type(map[k]) starts with 'LIST'
+                ,
+                '
+                //first setting LIST property on main node                    
+                WITH j, map, k, [i in map[k] WHERE apoc.meta.cypher.type(i) <> "MAP"] as not_map_lst
+                call apoc.do.when(
+                    size(not_map_lst) <> 0,
+                    "call apoc.create.setProperty([j], $k, $not_map_lst) YIELD node RETURN node",
+                    "RETURN j",
+                    {j:j, k:k, not_map_lst:not_map_lst}
                 ) YIELD value
-                WITH DISTINCT j
-                REMOVE j:JSON  
-                REMOVE j.value  
-                """
-            else:
-                q="""
-                MATCH (j:JSON)
-                WITH j, apoc.convert.fromJsonMap(j.value) as map
-                WITH j, map, keys(map) as ks UNWIND ks as k
-                call apoc.do.case([
-                    apoc.meta.type(map[k]) = 'MAP'
-                    ,
-                    '
-                    CALL apoc.merge.node(["JSON", $k], {value: apoc.convert.toJson($map[$k])}) YIELD node            
-                    CALL apoc.merge.relationship(j,$rel_prefix + k, {}, {}, node, {}) YIELD rel            
-                    RETURN node, rel       
-                    '
-                    ,
-                    apoc.meta.type(map[k]) = 'LIST'
-                    ,
-                    '
-                    //first setting LIST property on main node                    
-                    WITH j, map, k, [i in map[k] WHERE apoc.meta.type(i) <> "MAP"] as not_map_lst
-                    call apoc.do.when(
-                        size(not_map_lst) <> 0,
-                        "call apoc.create.setProperty([j], $k, $not_map_lst) YIELD node RETURN node",
-                        "RETURN j",
-                        {j:j, k:k, not_map_lst:not_map_lst}
-                    ) YIELD value
-                    WITH *, [i in map[k] WHERE NOT i IN not_map_lst] as map_lst                    
-                    UNWIND map_lst as item_map
-                    CALL apoc.merge.node(["JSON", $k], {value: apoc.convert.toJson(item_map)}) YIELD node            
-                    CALL apoc.merge.relationship(j,$rel_prefix + k, {}, {}, node, {}) YIELD rel            
-                    RETURN node, rel   
-                    '   
-                    ]
-                    ,
-                    '
-                    call apoc.create.setProperty([j], $k, $map[$k]) YIELD node
-                    RETURN node         
-                    '  
-                    ,
-                    {k: k, map: map, j: j, rel_prefix: $rel_prefix}        
-                ) YIELD value
-                WITH DISTINCT j
-                REMOVE j:JSON  
-                REMOVE j.value  
-                """  
+                WITH *, [i in map[k] WHERE NOT i IN not_map_lst] as map_lst                    
+                UNWIND map_lst as item_map
+                CALL apoc.merge.node(["JSON", $k], {value: apoc.convert.toJson(item_map)}) YIELD node            
+                CALL apoc.merge.relationship(j,$rel_prefix + k, {}, {}, node, {}) YIELD rel            
+                RETURN node, rel   
+                '   
+                ]
+                ,
+                '
+                call apoc.create.setProperty([j], $k, $map[$k]) YIELD node
+                RETURN node         
+                '  
+                ,
+                {k: k, map: map, j: j, rel_prefix: $rel_prefix}        
+            ) YIELD value
+            WITH DISTINCT j
+            REMOVE j:JSON  
+            REMOVE j.value  
+            """
             self.query(q, {"rel_prefix": rel_prefix})
             i += 1
 
