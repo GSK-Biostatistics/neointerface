@@ -1507,7 +1507,14 @@ class NeoInterface:
                 res += [r['node_id'] for r in res_chunk]
         return res
 
-    def load_dict(self, dct: dict, label="Root", rel_prefix="", maxdepth=10):
+    def load_dict(
+        self, 
+        dct: dict, 
+        label="Root", 
+        rel_prefix="", 
+        maxdepth=10,
+        linkml_schema: dict = None
+    ):
         """
         Loads python dict to Neo4j (auto-unpacking hierarchy)
         Children of type dict converted into related nodes with relationship {rel_prefix}_{key}
@@ -1519,8 +1526,43 @@ class NeoInterface:
         :param label: label to assign to the root node
         :param rel_prefix: prefix to add to relationship name from parent to child
         :param maxdepth: maximum possible depth(of children) of dict
+        :param linkml_schema: assign labes to entities within the dict according to the provided LinkML schema
         :return: None
         """
+        if not linkml_schema:
+            linkml_schema = {}
+        # processing dct vs linkml_schema to create label rename_dict        
+        
+        def get_rename_dict(label: str, dct: dict, linkml_schema: dict = None):
+            if not linkml_schema:
+                linkml_schema = {"classes": {}}            
+            res = {}            
+            for key, item in dct.items():  
+                if not key in res:              
+                    res = {**res, **{key: key}}                
+                    if isinstance(item, dict):
+                        lod = [item]
+                    elif isinstance(item, list):
+                        lod = item
+                    else:
+                        lod = []                                  
+                    for d_item in lod:
+                        if linkml_schema:
+                            assert "classes" in linkml_schema.keys(), "Invalid linkml_schema: 'classes' not found"
+                            classes = linkml_schema.get("classes")                                                        
+                            cur_class = classes.get(label)                                                    
+                            if cur_class:                              
+                                attrs = cur_class.get("attributes")
+                                assert attrs, f"Invalid linkml_schema: 'attributes' not found for {cur_class}"
+                                cur_attr = attrs.get(key)
+                                assert cur_attr, f"Invalid linkml_schema: attribute {cur_attr} not found for {cur_class}"
+                                cur_range = cur_attr.get("range")
+                                assert cur_range, f"Invalid linkml_schema: no 'range' specified found for dict attribute {cur_attr} of class {cur_class}"                            
+                                target_label = cur_range                            
+                                res[key] = target_label
+                                res = {**res, **(get_rename_dict(target_label, d_item, linkml_schema))}                                      
+            return res
+        rename_dict = get_rename_dict(label, dct, linkml_schema)                                                
         # initial load of the complete json as a node
         j = json.dumps(dct)
         self.query(
@@ -1543,7 +1585,7 @@ class NeoInterface:
                 apoc.meta.cypher.type(map[k]) = 'MAP'
                 ,
                 '
-                CALL apoc.merge.node(["JSON", $k], {value: apoc.convert.toJson($map[$k])}) YIELD node            
+                CALL apoc.merge.node(["JSON", $k_upd], {value: apoc.convert.toJson($map[$k])}) YIELD node            
                 CALL apoc.merge.relationship(j,$rel_prefix + k, {}, {}, node, {}) YIELD rel            
                 RETURN node, rel       
                 '
@@ -1561,7 +1603,7 @@ class NeoInterface:
                 ) YIELD value
                 WITH *, [i in map[k] WHERE NOT i IN not_map_lst] as map_lst                    
                 UNWIND map_lst as item_map
-                CALL apoc.merge.node(["JSON", $k], {value: apoc.convert.toJson(item_map)}) YIELD node            
+                CALL apoc.merge.node(["JSON", $k_upd], {value: apoc.convert.toJson(item_map)}) YIELD node            
                 CALL apoc.merge.relationship(j,$rel_prefix + k, {}, {}, node, {}) YIELD rel            
                 RETURN node, rel   
                 '   
@@ -1572,13 +1614,19 @@ class NeoInterface:
                 RETURN node         
                 '  
                 ,
-                {k: k, map: map, j: j, rel_prefix: $rel_prefix}        
+                {k: k, k_upd: coalesce($rename_dict[k], k), map: map, j: j, rel_prefix: $rel_prefix}                        
             ) YIELD value
             WITH DISTINCT j
             REMOVE j:JSON  
             REMOVE j.value  
-            """
-            self.query(q, {"rel_prefix": rel_prefix})
+            """     
+            self.query(
+                q, 
+                {
+                    "rel_prefix": rel_prefix,
+                    "rename_dict": rename_dict
+                }
+            )
             i += 1
 
     def load_arrows_dict(self, dct: dict, merge_on=None, always_create=None, timestamp=False):
