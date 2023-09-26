@@ -2056,7 +2056,7 @@ class NeoInterface:
             x.
             `{uri_prop}` = apoc.text.urlencode(
                 $prefix + apoc.text.join($add_prefixes + $opt_label + 
-{"[nbr in nbrs | nbr['map'][$neighbours[toString(nbr['index']['property'])]]] +" if neighbours else ""} 
+{"[nbr in nbrs | toString(nbr['map'][$neighbours[nbr['index']]['property']])] +" if neighbours else ""} 
 [prop in $properties | toString(x[prop])], $sep)
             )             
             """
