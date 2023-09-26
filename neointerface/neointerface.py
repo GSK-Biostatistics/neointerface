@@ -1543,7 +1543,7 @@ class NeoInterface:
                     if isinstance(item, dict):
                         lod = [item]
                     elif isinstance(item, list):
-                        lod = item
+                        lod = [x for x in item if isinstance(x, dict)]
                     else:
                         lod = []                                  
                     for d_item in lod:
