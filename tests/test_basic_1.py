@@ -1,10 +1,12 @@
 import pytest
 from neointerface import neointerface
+from neo4j import __version__ as neo4j_driver_version
 from pytest_unordered import unordered
 import os
 import pandas as pd
 import numpy as np
 import neo4j
+import re
 from networkx import MultiDiGraph
 from datetime import datetime, date
 from neo4j.time import DateTime, Date
@@ -35,7 +37,7 @@ def test_construction():
     obj1 = neointerface.NeoInterface(url, verbose=False)  # Rely on default username/pass
 
     assert obj1.verbose is False
-    assert obj1.version() == "4.4.0"  # Test the version of the Neo4j driver
+    assert obj1.version() in ["5.10.0", "4.4.0"]  # Test the version of the Neo4j driver
 
     # Another way of instantiating the class
     obj2 = neointerface.NeoInterface(url, credentials_as_tuple, verbose=False)  # Explicitly pass the credentials
@@ -810,19 +812,29 @@ def test_get_indexes(db):
     result = db.get_indexes()
     assert result.iloc[0]["labelsOrTypes"] == ["my_label"]
     assert result.iloc[0]["properties"] == ["my_property"]
-    assert result.iloc[0]["type"] == "BTREE"
-    assert result.iloc[0]["uniqueness"] == "NONUNIQUE"
-
-    db.query("CREATE CONSTRAINT some_name ON (n:my_label) ASSERT n.node_id IS UNIQUE")
+    if not re.search(r'^[01234]\.', db.db_version):
+        assert result.iloc[0]["type"] == "RANGE"
+        db.query("CREATE CONSTRAINT some_name FOR (n:my_label) REQUIRE n.node_id IS UNIQUE")
+    else:
+        assert result.iloc[0]["type"] == "BTREE"  
+        assert result.iloc[0]["uniqueness"] == "NONUNIQUE"
+        db.query("CREATE CONSTRAINT some_name ON (n:my_label) ASSERT n.node_id IS UNIQUE")
+           
     result = db.get_indexes()
     new_row = dict(result.iloc[1])
-    assert new_row == {"labelsOrTypes": ["my_label"],
-                       "name": "some_name",
-                       "properties": ["node_id"],
-                       "type": "BTREE",
-                       "uniqueness": "UNIQUE"
-                       }
-
+    if not re.search(r'^[01234]\.', db.db_version):
+        assert new_row == {"labelsOrTypes": ["my_label"],
+                        "name": "some_name",
+                        "properties": ["node_id"],
+                        "type": "RANGE"
+                        }                   
+    else:
+        assert new_row == {"labelsOrTypes": ["my_label"],
+                        "name": "some_name",
+                        "properties": ["node_id"],
+                        "type": "BTREE",
+                        "uniqueness": "UNIQUE"
+                        } 
 
 def test_create_index(db):
     db.clean_slate()
@@ -835,8 +847,11 @@ def test_create_index(db):
     assert result.iloc[0]["labelsOrTypes"] == ["car"]
     assert result.iloc[0]["name"] == "car.color"
     assert result.iloc[0]["properties"] == ["color"]
-    assert result.iloc[0]["type"] == "BTREE"
-    assert result.iloc[0]["uniqueness"] == "NONUNIQUE"
+    if not re.search(r'^[01234]\.', db.db_version):
+        assert result.iloc[0]["type"] == "RANGE"
+    else:
+        assert result.iloc[0]["type"] == "BTREE"
+        assert result.iloc[0]["uniqueness"] == "NONUNIQUE"
 
     status = db.create_index("car", "color")  # Attempt to create again same index
     assert status is False
@@ -849,9 +864,11 @@ def test_create_index(db):
     assert result.iloc[1]["labelsOrTypes"] == ["car"]
     assert result.iloc[1]["name"] == "car.make"
     assert result.iloc[1]["properties"] == ["make"]
-    assert result.iloc[1]["type"] == "BTREE"
-    assert result.iloc[1]["uniqueness"] == "NONUNIQUE"
-
+    if not re.search(r'^[01234]\.', db.db_version):
+        assert result.iloc[1]["type"] == "RANGE"
+    else:
+        assert result.iloc[1]["uniqueness"] == "NONUNIQUE"
+        assert result.iloc[1]["type"] == "BTREE"
 
 def test_drop_index(db):
     db.clean_slate()
@@ -899,7 +916,10 @@ def test_create_constraint(db):
 
     result = db.get_constraints()
     assert len(result) == 1
-    expected_list = ["name", "description", "details"]
+    if not re.search(r'^[01234]\.', db.db_version):
+        expected_list = ["name", "type", "labelsOrTypes", "properties", "propertyType"]
+    else:
+        expected_list = ["name", "description", "details"]
     assert unordered(list(result.columns)) == expected_list
     assert result.iloc[0]["name"] == "my_first_constraint"
 
@@ -908,7 +928,10 @@ def test_create_constraint(db):
 
     result = db.get_constraints()
     assert len(result) == 2
-    expected_list = ["name", "description", "details"]
+    if not re.search(r'^[01234]\.', db.db_version):
+        expected_list = ["name", "type", "labelsOrTypes", "properties", "propertyType"]
+    else:
+        expected_list = ["name", "description", "details"]
     assert unordered(list(result.columns)) == expected_list
     cname0 = result.iloc[0]["name"]
     cname1 = result.iloc[1]["name"]
@@ -935,17 +958,28 @@ def test_get_constraints(db):
     result = db.get_constraints()
     assert result.empty
 
-    db.query("CREATE CONSTRAINT my_first_constraint ON (n:patient) ASSERT n.patient_id IS UNIQUE")
+    if not re.search(r'^[01234]\.', db.db_version):
+        db.query("CREATE CONSTRAINT my_first_constraint FOR (n:patient) REQUIRE n.patient_id IS UNIQUE")
+    else:
+        db.query("CREATE CONSTRAINT my_first_constraint ON (n:patient) ASSERT n.patient_id IS UNIQUE")
     result = db.get_constraints()
     assert len(result) == 1
-    expected_list = ["name", "description", "details"]
+    if not re.search(r'^[01234]\.', db.db_version):
+        expected_list = ["name", "type", "labelsOrTypes", "properties", "propertyType"]
+    else:
+        expected_list = ["name", "description", "details"]
     assert unordered(list(result.columns)) == expected_list
     assert result.iloc[0]["name"] == "my_first_constraint"
-
-    db.query("CREATE CONSTRAINT unique_model ON (n:car) ASSERT n.model IS UNIQUE")
+    if not re.search(r'^[01234]\.', db.db_version):
+        db.query("CREATE CONSTRAINT unique_model FOR (n:car) REQUIRE n.model IS UNIQUE")
+    else:
+        db.query("CREATE CONSTRAINT unique_model ON (n:car) ASSERT n.model IS UNIQUE")
     result = db.get_constraints()
     assert len(result) == 2
-    expected_list = ["name", "description", "details"]
+    if not re.search(r'^[01234]\.', db.db_version):
+        expected_list = ["name", "type", "labelsOrTypes", "properties", "propertyType"]
+    else:
+        expected_list = ["name", "description", "details"]
     assert unordered(list(result.columns)) == expected_list
     assert result.iloc[1]["name"] == "unique_model"
 
@@ -1094,7 +1128,7 @@ def test_load_df(db):
     df = pd.DataFrame({"patient_id": [300, 200], "name": ["Remy", "Jill again"]})
     db.load_df(df, "X", merge=True, primary_key="patient_id")
     X_nodes = db.get_nodes("X")
-    assert X_nodes == [{'patient_id': 100, 'name': 'Jack', }, {'patient_id': 200, 'name': 'Jill again'},
+    assert X_nodes == [{'patient_id': 100, 'name': 'Jack'}, {'patient_id': 200, 'name': 'Jill again'},
                        {'patient_id': 300, 'name': 'Remy'}]
 
 

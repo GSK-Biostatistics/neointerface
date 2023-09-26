@@ -4,7 +4,7 @@ chardet==4.0.0
 decorator==4.4.2
 idna==2.10
 iniconfig==1.1.1
-neo4j==4.4.0
+neo4j==5.10.0
 networkx==2.5.1
 numpy==1.19.5
 packaging==21.3

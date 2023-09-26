@@ -78,6 +78,7 @@ class NeoInterface:
                 logging.getLogger('neointerface').setLevel(logging.DEBUG)
             else:
                 logging.getLogger('neointerface').setLevel(logging.INFO)
+        self.db_version = None                
         if self.autoconnect:  # TODO: add test for autoconnect == False
             # Attempt to create a driver object
             self.connect()
@@ -86,8 +87,12 @@ class NeoInterface:
             # if apoc:
             # self.setup_all_apoc_custom()
             # Extra initializations if RDF support required
+            # TODO Add if for versions separately
             if self.rdf:
-                self.rdf_setup_connection()
+                if re.search(r'^[01234]\.', self.db_version):
+                    self.rdf_setup_connection()
+                else:
+                    logging.debug("Neo4j Aura doesn't support n10 plugin, neointerface does will not support RDF connection starting Neo4j version 5 and above")    
 
     def connect(self) -> None:
         try:
@@ -98,6 +103,7 @@ class NeoInterface:
             else:
                 self.driver = GraphDatabase.driver(self.host,
                                                    auth=None)  # Object to connect to Neo4j's Bolt driver for Python
+            self.db_version = self.get_dbms_details()[0]['version']
 
         except Exception as ex:
             error_msg = f"CHECK IF NEO4J IS RUNNING! While instantiating the NeoInterface object, failed to create the driver: {ex}"
@@ -513,7 +519,7 @@ class NeoInterface:
         """
         (cypher, cypher_dict) = self._match_nodes(labels=labels, properties_condition=properties_condition,
                                                   cypher_clause=cypher_clause, cypher_dict=cypher_dict)
-        cypher += " RETURN n"
+        cypher += " RETURN n ORDER BY id(n)"
 
         if self.verbose:
             logger.debug(f"""
@@ -763,12 +769,20 @@ class NeoInterface:
             types = []
             where = ""
 
-        q = f"""
-          call db.indexes() 
-          yield name, labelsOrTypes, properties, type, uniqueness
-          {where}
-          return *
-          """
+        if not re.search(r'^[01234]\.', self.db_version):
+           q = f"""
+            SHOW INDEXES
+            yield name, labelsOrTypes, properties, type
+            {where}
+            return *
+            """
+        else:
+            q = f"""
+            call db.indexes() 
+            yield name, labelsOrTypes, properties, type, uniqueness
+            {where}
+            return *
+            """
 
         results = self.query(q, {"types": types})
         if len(results) > 0:
@@ -787,7 +801,14 @@ class NeoInterface:
 
         :return:  A (possibly-empty) Pandas dataframe
         """
-        q = """
+        if not re.search(r'^[01234]\.', self.db_version):
+            q="""
+           SHOW CONSTRAINTS
+           yield name, type, labelsOrTypes, properties, propertyType
+           return *
+           """
+        else:
+            q = """
            call db.constraints() 
            yield name, description, details
            return *
@@ -870,7 +891,10 @@ class NeoInterface:
             return False
 
         try:
-            q = f'CREATE CONSTRAINT {cname} ON (s:`{label}`) ASSERT s.`{key}` IS UNIQUE'
+            if not re.search(r'^[01234]\.', self.db_version):
+                q=f'CREATE CONSTRAINT {cname} FOR (s:`{label}`) REQUIRE s.`{key}` IS UNIQUE'
+            else:
+                q = f'CREATE CONSTRAINT {cname} ON (s:`{label}`) ASSERT s.`{key}` IS UNIQUE'
             if self.verbose:
                 logger.debug(f"""
                 query: {q}
@@ -1444,7 +1468,7 @@ class NeoInterface:
 
         numeric_columns = []
         if ignore_nan:
-            for col, dtype in df.dtypes.iteritems():
+            for col, dtype in df.dtypes.items():
                 if dtype in ['float64', 'int64']:
                     numeric_columns.append(col)
 
@@ -1511,49 +1535,50 @@ class NeoInterface:
         i = 0
         # unpacking hierarchy (looping until no nodes with JSON label are left or maxdepth reached
         while (self.query("MATCH (j:JSON) RETURN j LIMIT 1")) and i < maxdepth:
-            self.query("""
-                MATCH (j:JSON)
-                WITH j, apoc.convert.fromJsonMap(j.value) as map
-                WITH j, map, keys(map) as ks UNWIND ks as k
-                call apoc.do.case([
-                    apoc.meta.type(map[k]) = 'MAP'
-                    ,
-                    '
-                    CALL apoc.merge.node(["JSON", $k], {value: apoc.convert.toJson($map[$k])}) YIELD node            
-                    CALL apoc.merge.relationship(j,$rel_prefix + k, {}, {}, node, {}) YIELD rel            
-                    RETURN node, rel       
-                    '
-                    ,
-                    apoc.meta.type(map[k]) = 'LIST'
-                    ,
-                    '
-                    //first setting LIST property on main node                    
-                    WITH j, map, k, [i in map[k] WHERE apoc.meta.type(i) <> "MAP"] as not_map_lst
-                    call apoc.do.when(
-                        size(not_map_lst) <> 0,
-                        "call apoc.create.setProperty([j], $k, $not_map_lst) YIELD node RETURN node",
-                        "RETURN j",
-                        {j:j, k:k, not_map_lst:not_map_lst}
-                    ) YIELD value
-                    WITH *, [i in map[k] WHERE NOT i IN not_map_lst] as map_lst                    
-                    UNWIND map_lst as item_map
-                    CALL apoc.merge.node(["JSON", $k], {value: apoc.convert.toJson(item_map)}) YIELD node            
-                    CALL apoc.merge.relationship(j,$rel_prefix + k, {}, {}, node, {}) YIELD rel            
-                    RETURN node, rel   
-                    '   
-                    ]
-                    ,
-                    '
-                    call apoc.create.setProperty([j], $k, $map[$k]) YIELD node
-                    RETURN node         
-                    '  
-                    ,
-                    {k: k, map: map, j: j, rel_prefix: $rel_prefix}        
+            q="""
+            MATCH (j:JSON)
+            WITH j, apoc.convert.fromJsonMap(j.value) as map
+            WITH j, map, keys(map) as ks UNWIND ks as k
+            call apoc.do.case([
+                apoc.meta.cypher.type(map[k]) = 'MAP'
+                ,
+                '
+                CALL apoc.merge.node(["JSON", $k], {value: apoc.convert.toJson($map[$k])}) YIELD node            
+                CALL apoc.merge.relationship(j,$rel_prefix + k, {}, {}, node, {}) YIELD rel            
+                RETURN node, rel       
+                '
+                ,
+                apoc.meta.cypher.type(map[k]) starts with 'LIST'
+                ,
+                '
+                //first setting LIST property on main node                    
+                WITH j, map, k, [i in map[k] WHERE apoc.meta.cypher.type(i) <> "MAP"] as not_map_lst
+                call apoc.do.when(
+                    size(not_map_lst) <> 0,
+                    "call apoc.create.setProperty([j], $k, $not_map_lst) YIELD node RETURN node",
+                    "RETURN j",
+                    {j:j, k:k, not_map_lst:not_map_lst}
                 ) YIELD value
-                WITH DISTINCT j
-                REMOVE j:JSON  
-                REMOVE j.value  
-                """, {"rel_prefix": rel_prefix})
+                WITH *, [i in map[k] WHERE NOT i IN not_map_lst] as map_lst                    
+                UNWIND map_lst as item_map
+                CALL apoc.merge.node(["JSON", $k], {value: apoc.convert.toJson(item_map)}) YIELD node            
+                CALL apoc.merge.relationship(j,$rel_prefix + k, {}, {}, node, {}) YIELD rel            
+                RETURN node, rel   
+                '   
+                ]
+                ,
+                '
+                call apoc.create.setProperty([j], $k, $map[$k]) YIELD node
+                RETURN node         
+                '  
+                ,
+                {k: k, map: map, j: j, rel_prefix: $rel_prefix}        
+            ) YIELD value
+            WITH DISTINCT j
+            REMOVE j:JSON  
+            REMOVE j.value  
+            """
+            self.query(q, {"rel_prefix": rel_prefix})
             i += 1
 
     def load_arrows_dict(self, dct: dict, merge_on=None, always_create=None, timestamp=False):
@@ -2188,3 +2213,8 @@ class NeoInterface:
             url=url,
             auth=self.credentials)
         return response.text
+    
+    def get_dbms_details(self):
+        q1 = "call dbms.components() yield name, versions, edition unwind versions as version return name, version, edition"
+        result = self.query(q1)
+        return result
