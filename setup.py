@@ -28,7 +28,7 @@ for line in requirements:
 
 setuptools.setup(
     name="neointerface",                     # This is the name of the package
-    version="4.0.2",                         # The initial release version
+    version="4.1.2",                         # The initial release version
     author="Alexey Kuznetsov, Julian West, Ben Grinsted, William McDermott",  # Full name of the authors
     description="A Python interface to use the Neo4j graph database",
     long_description="https://github.com/GSK-Biostatistics/neointerface/blob/main/README.md",      # Long description read from the the readme file

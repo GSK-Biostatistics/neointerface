@@ -144,7 +144,62 @@ def test_load_dict_simple(db):
             'col': {'name': 'DMDTC', 'type': 'datetime'}
         }
     ]
+    assert res == expected
+    
+def test_load_dict_linkml(db):
+    dct = {
+        "class": "SDTMDataset", 
+        "name": "DM", 
+        "SDTMColumn": [
+            {"name": "USUBJID", "terms": {"code": "Cxxxx"}}, 
+            {"name": "DMDTC", "type": "datetime"}
+        ]
+    }
+    linkml_schema = {
+        "classes": {
+            "Dataset": {
+                "attributes": {
+                    "class": {},
+                    "name": {},
+                    "SDTMColumn": {"range": "Column"}
+                }
+            },
+            "Column": {
+                "attributes": {
+                    "name": {},
+                    "type": {},
+                    "terms": {"range": "Term"}
+                }
+            }
+        }
+    }
+    db.delete_nodes_by_label(delete_labels=["Dataset", "Column", "SDTMColumn"])
+    db.load_dict(dct, label="Dataset", linkml_schema=linkml_schema)
 
+    res = db.query("""
+       MATCH (ds:Dataset)-[rel:SDTMColumn]->(col:Column)
+       OPTIONAL MATCH (col)-[rel2:terms]->(t:Term)
+       RETURN ds{.*}, rel, col{.*}, rel2, t{.*}
+       ORDER BY ds, rel, col.name desc, rel2, t
+       """)
+
+    expected = [
+        {
+            'ds': {'name': 'DM', 'class': 'SDTMDataset'},
+            'rel': ({}, 'SDTMColumn', {}),
+            'col': {'name': 'USUBJID'},
+            'rel2': ({}, 'terms', {}),
+            't': {'code': 'Cxxxx'},
+        }
+        ,
+        {
+            'ds': {'name': 'DM', 'class': 'SDTMDataset'},
+            'rel': ({}, 'SDTMColumn', {}),
+            'col': {'name': 'DMDTC', 'type': 'datetime'},
+            'rel2': None, 
+            't': None
+        }
+    ]
     assert res == expected
 
 
