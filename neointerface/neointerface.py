@@ -408,7 +408,7 @@ class NeoInterface:
             new_value = source.to_native()
             original[key_or_index] = new_value
 
-    def flatten(self, dictionary: collections.MutableMapping, parent_key: str = False, separator: str = '.'):
+    def flatten(self, dictionary: collections.abc.MutableMapping, parent_key: str = False, separator: str = '.'):
         """
         Recursively scan a combination of nested lists and dictionaries and return a flattened dictionary.
         :param dictionary: The dictionary to flatten
