@@ -6,9 +6,7 @@ idna==2.10
 iniconfig==1.1.1
 neo4j==5.10.0
 networkx==2.5.1
-numpy==1.19.5
 packaging==21.3
-pandas==1.1.5
 pluggy==0.13.1
 py==1.11.0
 pytest==6.2.4
