@@ -20,6 +20,20 @@ def db():
     yield neo_obj
 
 
+def equal_ignore_order(a, b):
+    unmatched = list(b)
+    
+    if len(a) != len(b):
+        return False
+    
+    for element in a:
+        try:
+            unmatched.remove(element)
+        except ValueError:
+            return False
+    return not unmatched
+
+
 def test_construction():
     # Note: if database isn't running, the error output includes the line:
     """
@@ -1215,3 +1229,52 @@ def test_get_df(db):
     df_new = db.get_df("A")
 
     assert df_original.sort_index(axis=1).equals(df_new.sort_index(axis=1))  # Disregard column order in the comparison
+
+def test_series_with_no_name(db):
+    db.clean_slate()
+    # First group on nodes to import
+    ages = np.array([13, 25, 19, 99])
+    series_1 = pd.Series(ages)    # A series with no name; during the import, label will be used
+    id_list = db.load_df(series_1, "age")
+    q = f'''
+        MATCH (n :age) 
+        WHERE id(n) IN {id_list}
+        RETURN n
+        '''
+    res = db.query(q)
+    res_list = [i['n'] for i in res]
+    expected = [{'age': 13}, {'age': 25}, {'age': 19}, {'age': 99}]
+    assert equal_ignore_order(res_list, expected)
+
+
+def test_max_chunk_size_equals_df_size(db):
+    db.clean_slate()
+    # First group on 5 nodes to import
+    df = pd.DataFrame({"name": ["A", "B", "C", "D", "E"], "price": [1, 2, 3, 4, 5]})
+
+    # Re-import them (with a different label) in tiny "import chunks" of size 2
+    db.load_df(df, label="test", max_chunk_size=5)
+
+    q = f'''
+        MATCH (n :test)
+        RETURN n
+        '''
+    res = db.query(q)
+    res_list = [i['n'] for i in res]
+    expected = [{'price': 1, 'name': 'A'}, {'price': 2, 'name': 'B'}, {'price': 3, 'name': 'C'}, {'price': 4, 'name': 'D'}, {'price': 5, 'name': 'E'}]
+    assert equal_ignore_order(res_list, expected)
+
+
+def test_load_pandas_4c(db):
+    db.clean_slate()
+    
+    # Attempt to merge using columns with NULL values
+    df = pd.DataFrame({"name": ["Bob", "Tom"], "col1": [26, None], "col2": [1.1, None]})
+    with pytest.raises(Exception):
+        # Cannot merge node on NULL value in column `col1`
+        db.load_df(df, labels="X", merge_primary_key='col1', merge_overwrite=False)
+
+    with pytest.raises(Exception):
+        # Cannot merge node on NULL value in column `col1`
+        db.load_df(df, labels="X", merge_primary_key='col1', merge_overwrite=True)
+

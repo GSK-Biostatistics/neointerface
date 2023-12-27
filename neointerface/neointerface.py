@@ -17,6 +17,7 @@ from warnings import warn
 from networkx import MultiDiGraph
 from neo4j.graph import Node, Relationship, Path
 from logger.logger import logger
+import math
 
 
 class NeoInterface:
@@ -1451,7 +1452,11 @@ class NeoInterface:
         :return:                List of node ids, created in the operation
         """
         if isinstance(df, pd.Series):
-            df = pd.DataFrame(df)
+            if df.name is None:
+                df = pd.DataFrame(df, columns = [label])
+            else:
+                df = pd.DataFrame(df)
+                
         if rename is not None:
             df = df.rename(rename, axis=1)  # Rename the columns in the Pandas data frame
 
