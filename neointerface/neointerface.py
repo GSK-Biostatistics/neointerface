@@ -211,7 +211,10 @@ class NeoInterface:
 
         assert return_type in ['data', 'neo4j.Result', 'pd', 'nx']
         # Start a new session, use it, and then immediately close it
-        with self.driver.session() as new_session:
+        dbname = os.environ.get("NEO4J_DB")
+        if not dbname:
+            dbname = "neo4j"
+        with self.driver.session(database = dbname) as new_session:
             result = new_session.run(q, params)
 
             # Note: result is a neo4j.Result object;
