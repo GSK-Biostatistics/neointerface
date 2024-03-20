@@ -47,6 +47,7 @@ class NeoInterface:
     def __init__(self,
                  host=os.environ.get("NEO4J_HOST"),
                  credentials=(os.environ.get("NEO4J_USER"), os.environ.get("NEO4J_PASSWORD")),
+                 dbname: str=os.environ.get("NEO4J_DB"),
                  apoc=False,
                  rdf=False,
                  rdf_host=None,
@@ -69,6 +70,10 @@ class NeoInterface:
         self.autoconnect = autoconnect
         self.host = host
         self.credentials = credentials
+        if not dbname:
+            self.dbname = "neo4j"
+        else:
+            self.dbname = dbname
         self.apoc = apoc
         self.rdf = rdf
         self.rdf_host = rdf_host
@@ -210,11 +215,8 @@ class NeoInterface:
         """
 
         assert return_type in ['data', 'neo4j.Result', 'pd', 'nx']
-        # Start a new session, use it, and then immediately close it
-        dbname = os.environ.get("NEO4J_DB")
-        if not dbname:
-            dbname = "neo4j"
-        with self.driver.session(database = dbname) as new_session:
+        # Start a new session, use it, and then immediately close it        
+        with self.driver.session(database = self.dbname) as new_session:
             result = new_session.run(q, params)
 
             # Note: result is a neo4j.Result object;
@@ -1747,6 +1749,43 @@ class NeoInterface:
             return res[0]
         else:
             return None
+
+    def load_spo(self, spo: list = []) -> None:
+        """
+        Loading bindings like subject, predicate object into Neo4j
+        Expected structure of spo list:
+        [{'s': {'type': 'uri', 'value': '...'}, 
+          'p': {'type': 'uri', 'value': '...'},
+          'o': {'type': 'literal', 'value': ''}
+         },
+         {...},
+         ...
+        ]
+        object may be a literal or another uri.
+        """
+        self.create_index("Resource", "uri")
+        for binding in spo:
+            s_uri = binding.get('s').get('value')
+            pred = binding.get('p').get('value').rsplit("/",1)[-1]
+            o_is_uri = binding.get('o').get('type') == 'uri'
+            o = binding.get('o').get('value')
+            q = "MERGE (s:Resource {uri: $s_uri}) "
+            if pred == "22-rdf-syntax-ns#type":
+                q += f"SET s:`{o}`"
+            else:
+                if o_is_uri:            
+                    q += "MERGE (o:Resource {uri: $o}) "
+                    q += f"MERGE (s)-[:`{pred}`]->(o)"
+                else:
+                    q += f"SET s.`{pred}` = $o"
+            self.query(
+            q 
+            ,
+            {
+                "s_uri": s_uri,
+                "o": o
+            }
+            )
 
     ############################################################################################
     #                                                                                          #
